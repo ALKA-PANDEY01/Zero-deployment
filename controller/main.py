@@ -19,9 +19,9 @@ app = FastAPI(
 # CONFIGURATION
 # --------------------------------------------------
 
-PROXY_CONFIG = os.getenv(
-    "PROXY_CONFIG",
-    "/shared/nginx.conf"
+CONFIG = os.getenv(
+    "CONFIG",
+    os.getenv("PROXY_CONFIG", "/shared/nginx.conf"),
 )
 
 PROXY_CONTAINER = os.getenv(
@@ -46,6 +46,14 @@ GATEWAY_URL = os.getenv(
 
 DEFAULT_OBSERVATION_SECONDS = int(
     os.getenv("OBSERVATION_SECONDS", "15")
+)
+
+CANARY_STEP_SECONDS = float(
+    os.getenv("CANARY_STEP_SECONDS", "3")
+)
+
+MAX_CANARY_ERROR_RATE = float(
+    os.getenv("MAX_CANARY_ERROR_RATE", "0.10")
 )
 
 
@@ -100,6 +108,19 @@ def set_traffic(v1: int, v2: int):
             "Traffic percentages must total 100"
         )
 
+    upstream_servers = []
+    if v1:
+        upstream_servers.append(
+            f"        server app_v1:8000 weight={v1} "
+            "max_fails=2 fail_timeout=5s;"
+        )
+    if v2:
+        upstream_servers.append(
+            f"        server app_v2:8000 weight={v2} "
+            "max_fails=2 fail_timeout=5s;"
+        )
+    upstream_config = "\n".join(upstream_servers)
+
     nginx_config = f"""
 worker_processes auto;
 
@@ -114,15 +135,7 @@ http {{
 
     upstream app_pool {{
 
-        server app_v1:8000
-            weight={v1}
-            max_fails=2
-            fail_timeout=5s;
-
-        server app_v2:8000
-            weight={v2}
-            max_fails=2
-            fail_timeout=5s;
+{upstream_config}
     }}
 
     server {{
@@ -145,7 +158,7 @@ http {{
 }}
 """
 
-    with open(PROXY_CONFIG, "w") as file:
+    with open(CONFIG, "w") as file:
         file.write(nginx_config)
 
     docker_client = docker.from_env()
@@ -286,6 +299,84 @@ async def set_v2_demo_failure(enabled: bool):
     response.raise_for_status()
 
 
+async def monitor_canary(
+    v2_percent: int,
+    observation_seconds: float,
+    simulate_failure: bool = False,
+):
+    """Check V2 health and sample gateway errors during a traffic stage."""
+    requests = 0
+    errors = 0
+    v1_responses = 0
+    v2_responses = 0
+    failure_injected = False
+    started = time.monotonic()
+    deadline = started + observation_seconds
+
+    async with httpx.AsyncClient(timeout=2) as client:
+        while time.monotonic() < deadline:
+            elapsed = time.monotonic() - started
+            if (
+                simulate_failure
+                and not failure_injected
+                and elapsed >= min(2, observation_seconds / 2)
+            ):
+                await set_v2_demo_failure(True)
+                failure_injected = True
+                record("Demo injected V2 health failure")
+
+            healthy, health_message = await check_endpoint(
+                V2_URL,
+                "/health",
+                "v2",
+            )
+            if not healthy:
+                record(
+                    f"Canary monitor failed at V2={v2_percent}%: "
+                    f"{health_message}"
+                )
+                return False, health_message
+
+            requests += 1
+            try:
+                response = await client.get(f"{GATEWAY_URL}/")
+                if response.status_code != 200:
+                    errors += 1
+                else:
+                    version = response.json().get("version")
+                    if version == "v1":
+                        v1_responses += 1
+                    elif version == "v2":
+                        v2_responses += 1
+                    else:
+                        errors += 1
+            except Exception:
+                errors += 1
+
+            await asyncio.sleep(0.2)
+
+    error_rate = errors / requests if requests else 1.0
+    message = (
+        f"V2={v2_percent}%: {requests} gateway requests, "
+        f"V1 responses={v1_responses}, V2 responses={v2_responses}, "
+        f"errors={errors} ({error_rate:.1%})"
+    )
+    record(f"Canary metrics: {message}")
+
+    if not requests:
+        return False, "Canary monitor received no gateway responses"
+    if error_rate > MAX_CANARY_ERROR_RATE:
+        return (
+            False,
+            f"Gateway error rate {error_rate:.1%} exceeded "
+            f"the {MAX_CANARY_ERROR_RATE:.1%} limit",
+        )
+    if simulate_failure and not failure_injected:
+        return False, "Demo failed to inject the V2 health failure"
+
+    return True, message
+
+
 # --------------------------------------------------
 # ROLLBACK
 # --------------------------------------------------
@@ -364,68 +455,30 @@ async def deployment_job(
             )
 
             # --------------------------------------
-            # STEP 2
-            # 10% CANARY
+            # GRADUAL CANARY ROLLOUT
             # --------------------------------------
 
-            set_traffic(
-                90,
-                10,
-            )
+            for v2_percent in (10, 25, 50, 100):
+                set_traffic(
+                    100 - v2_percent,
+                    v2_percent,
+                )
+                record(
+                    f"Canary stage started: V2={v2_percent}%"
+                )
 
-            await asyncio.sleep(2)
+                success, message = await monitor_canary(
+                    v2_percent,
+                    CANARY_STEP_SECONDS,
+                )
+                if not success:
+                    record(f"Canary stage failed: {message}")
+                    rollback()
+                    return
 
-            record(
-                "10% canary period passed"
-            )
-
-            # --------------------------------------
-            # STEP 3
-            # 25% CANARY
-            # --------------------------------------
-
-            set_traffic(
-                75,
-                25,
-            )
-
-            await asyncio.sleep(2)
-
-            record(
-                "25% canary period passed"
-            )
-
-            # --------------------------------------
-            # STEP 4
-            # 50% CANARY
-            # --------------------------------------
-
-            set_traffic(
-                50,
-                50,
-            )
-
-            await asyncio.sleep(2)
-
-            record(
-                "50% canary period passed"
-            )
-
-            # --------------------------------------
-            # STEP 5
-            # 75% CANARY
-            # --------------------------------------
-
-            set_traffic(
-                25,
-                75,
-            )
-
-            await asyncio.sleep(2)
-
-            record(
-                "75% canary period passed"
-            )
+                record(
+                    f"Canary stage passed: V2={v2_percent}%"
+                )
 
             # --------------------------------------
             # OBSERVATION
@@ -436,60 +489,18 @@ async def deployment_job(
                 f"{observation_seconds} seconds"
             )
 
-            deadline = (
-                time.monotonic()
-                + observation_seconds
-            )
-            failure_injected = False
-
-            while (
-                time.monotonic()
-                < deadline
-            ):
-
-                if (
-                    simulate_failure
-                    and not failure_injected
-                    and observation_seconds > 2
-                    and deadline - time.monotonic()
-                    <= observation_seconds - 2
-                ):
-                    await set_v2_demo_failure(True)
-                    failure_injected = True
-                    record("Demo injected V2 health failure")
-
-                success, message = (
-                    await check_endpoint(
-                        V2_URL,
-                        "/health",
-                        "v2",
-                    )
-                )
-
-                if not success:
-
-                    record(
-                        f"Observation failed: {message}"
-                    )
-
-                    rollback()
-
-                    if simulate_failure:
-                        await set_v2_demo_failure(False)
-                        record("V2 demo health restored after rollback")
-
-                    return
-
-                await asyncio.sleep(1)
-
-            # --------------------------------------
-            # FINAL PROMOTION
-            # --------------------------------------
-
-            set_traffic(
-                0,
+            success, message = await monitor_canary(
                 100,
+                observation_seconds,
+                simulate_failure=simulate_failure,
             )
+            if not success:
+                record(f"Observation failed: {message}")
+                rollback()
+                if simulate_failure:
+                    await set_v2_demo_failure(False)
+                    record("V2 demo health restored after rollback")
+                return
 
             record(
                 "V2 promoted to 100% traffic",

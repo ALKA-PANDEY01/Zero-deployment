@@ -46,12 +46,14 @@ services:
       - "9000:9000"
 
     environment:
-      PROXY_CONFIG: /shared/nginx.conf
+      CONFIG: /shared/nginx.conf
       PROXY_CONTAINER: zerodown-proxy
       V1_URL: http://app_v1:8000
       V2_URL: http://app_v2:8000
       GATEWAY_URL: http://proxy
       OBSERVATION_SECONDS: 15
+      CANARY_STEP_SECONDS: 3
+      MAX_CANARY_ERROR_RATE: "0.10"
 
     volumes:
       - ./proxy/nginx.conf:/shared/nginx.conf
