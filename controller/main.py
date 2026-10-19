@@ -83,15 +83,15 @@ class DeployRequest(BaseModel):
 
 def record(message: str, status: str | None = None):
 
+    timestamp = datetime.now(timezone.utc).isoformat()
     deployment_state["steps"].append(
         {
-            "time": datetime.now(
-                timezone.utc
-            ).isoformat(),
-
+            "time": timestamp,
             "message": message,
         }
     )
+
+    print(f"[{timestamp}] {message}", flush=True)
 
     if status:
         deployment_state["status"] = status

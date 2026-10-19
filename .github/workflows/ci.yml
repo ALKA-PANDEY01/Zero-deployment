@@ -27,11 +27,34 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r app/requirements.txt
+          pip install -r controller/requirements.txt
           pip install -r tests/requirements.txt
 
+      - name: Start Compose stack for integration tests
+        run: docker compose up --build -d
+
+      - name: Wait for services
+        run: |
+          for attempt in {1..60}; do
+            if curl -fsS http://localhost:9000/health >/dev/null && curl -fsS http://localhost:8080/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Compose services did not become ready"
+          docker compose logs
+          exit 1
+
       - name: Run automated tests
+        env:
+          E2E_CONTROLLER_URL: http://localhost:9000
+          E2E_GATEWAY_URL: http://localhost:8080
         run: |
           pytest -q tests
+
+      - name: Stop Compose stack
+        if: always()
+        run: docker compose down --remove-orphans -v
 
       - name: Build Docker image
         run: |

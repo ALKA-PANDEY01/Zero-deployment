@@ -38,7 +38,8 @@ services:
 
   controller:
     build:
-      context: ./controller
+      context: .
+      dockerfile: controller.Dockerfile
 
     container_name: zerodown-controller
 

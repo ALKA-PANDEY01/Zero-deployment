@@ -25,7 +25,13 @@ def home():
 
 @app.get("/health")
 def health():
-    if FAIL_HEALTH or demo_health_failure:
+    if demo_health_failure:
+        raise HTTPException(
+            status_code=500,
+            detail="Simulated V2 health check failure",
+        )
+
+    if FAIL_HEALTH:
         raise HTTPException(
             status_code=503,
             detail="Simulated unhealthy application",
