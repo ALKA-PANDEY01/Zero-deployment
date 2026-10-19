@@ -1,0 +1,72 @@
+
+services:
+  app_v1:
+    build:
+      context: ./app
+    image: zero-downtime-demo:local
+    container_name: zerodown-app-v1
+    environment:
+      APP_VERSION: v1
+    networks:
+      - deployment
+    restart: unless-stopped
+
+  app_v2:
+    build:
+      context: ./app
+    image: zero-downtime-demo:local
+    container_name: zerodown-app-v2
+    environment:
+      APP_VERSION: v2
+    networks:
+      - deployment
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:1.27-alpine
+    container_name: zerodown-proxy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app_v1
+      - app_v2
+    networks:
+      - deployment
+    restart: unless-stopped
+
+  controller:
+    build:
+      context: ./controller
+
+    container_name: zerodown-controller
+
+    ports:
+      - "9000:9000"
+
+    environment:
+      PROXY_CONFIG: /shared/nginx.conf
+      PROXY_CONTAINER: zerodown-proxy
+      V1_URL: http://app_v1:8000
+      V2_URL: http://app_v2:8000
+      GATEWAY_URL: http://proxy
+      OBSERVATION_SECONDS: 15
+
+    volumes:
+      - ./proxy/nginx.conf:/shared/nginx.conf
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    depends_on:
+      - proxy
+      - app_v1
+      - app_v2
+
+    networks:
+      - deployment
+
+    restart: unless-stopped
+
+networks:
+  deployment:
+    driver: bridge

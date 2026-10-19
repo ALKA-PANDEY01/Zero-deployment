@@ -1,0 +1,40 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r app/requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Run automated tests
+        run: |
+          pytest -q tests
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t zero-downtime-demo:${{ github.sha }} \
+            ./app
