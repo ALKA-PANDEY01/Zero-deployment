@@ -277,6 +277,15 @@ async def validate_v2():
     )
 
 
+async def set_v2_demo_failure(enabled: bool):
+    """Toggle V2's local demo-only health failure switch."""
+    async with httpx.AsyncClient(timeout=3) as client:
+        response = await client.post(
+            f"{V2_URL}/demo/failure/{str(enabled).lower()}"
+        )
+    response.raise_for_status()
+
+
 # --------------------------------------------------
 # ROLLBACK
 # --------------------------------------------------
@@ -304,7 +313,8 @@ def rollback():
 # --------------------------------------------------
 
 async def deployment_job(
-    observation_seconds: int
+    observation_seconds: int,
+    simulate_failure: bool = False,
 ):
 
     async with deployment_lock:
@@ -320,6 +330,10 @@ async def deployment_job(
         deployment_state["finished_at"] = None
 
         try:
+
+            if simulate_failure:
+                await set_v2_demo_failure(False)
+                record("Failure demo armed: V2 starts healthy")
 
             record(
                 "Deployment started",
@@ -426,11 +440,23 @@ async def deployment_job(
                 time.monotonic()
                 + observation_seconds
             )
+            failure_injected = False
 
             while (
                 time.monotonic()
                 < deadline
             ):
+
+                if (
+                    simulate_failure
+                    and not failure_injected
+                    and observation_seconds > 2
+                    and deadline - time.monotonic()
+                    <= observation_seconds - 2
+                ):
+                    await set_v2_demo_failure(True)
+                    failure_injected = True
+                    record("Demo injected V2 health failure")
 
                 success, message = (
                     await check_endpoint(
@@ -447,6 +473,10 @@ async def deployment_job(
                     )
 
                     rollback()
+
+                    if simulate_failure:
+                        await set_v2_demo_failure(False)
+                        record("V2 demo health restored after rollback")
 
                     return
 
@@ -565,6 +595,44 @@ async def start_deployment(
             "Deployment started. "
             "Check /status."
         ),
+    }
+
+
+@app.post("/demo/failure")
+async def start_failure_demo(
+    background_tasks: BackgroundTasks,
+    request: DeployRequest | None = None,
+):
+    """Run a canary, fail V2 during observation, and demonstrate rollback."""
+    if deployment_state["status"] in [
+        "validating",
+        "rolling_back",
+    ]:
+        raise HTTPException(
+            status_code=409,
+            detail="Deployment already running",
+        )
+
+    observation_seconds = (
+        request.observation_seconds
+        if request is not None
+        and request.observation_seconds is not None
+        else DEFAULT_OBSERVATION_SECONDS
+    )
+    if not 3 <= observation_seconds <= 300:
+        raise HTTPException(
+            status_code=400,
+            detail="observation_seconds must be between 3 and 300 for the failure demo",
+        )
+
+    background_tasks.add_task(
+        deployment_job,
+        observation_seconds,
+        True,
+    )
+    return {
+        "accepted": True,
+        "message": "Failure demo started. V2 will fail during observation; check /status.",
     }
 
 

@@ -12,6 +12,7 @@ app = FastAPI(
 APP_VERSION = os.getenv("APP_VERSION", "v1")
 FAIL_HEALTH = os.getenv("FAIL_HEALTH", "false").lower() == "true"
 FAIL_SMOKE = os.getenv("FAIL_SMOKE", "false").lower() == "true"
+demo_health_failure = False
 
 
 @app.get("/")
@@ -24,7 +25,7 @@ def home():
 
 @app.get("/health")
 def health():
-    if FAIL_HEALTH:
+    if FAIL_HEALTH or demo_health_failure:
         raise HTTPException(
             status_code=503,
             detail="Simulated unhealthy application",
@@ -57,3 +58,10 @@ def get_data():
         "version": APP_VERSION,
         "deployment": "zero-downtime-demo",
     }
+
+
+@app.post("/demo/failure/{enabled}")
+def set_demo_failure(enabled: bool):
+    global demo_health_failure
+    demo_health_failure = enabled
+    return {"health_failure_enabled": demo_health_failure}
