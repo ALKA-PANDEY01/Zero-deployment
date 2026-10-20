@@ -1,27 +1,37 @@
-﻿name: Build Deployment
+﻿name: Zero Downtime Deployment
 
 on:
-  workflow_run:
-    workflows:
-      - CI Pipeline
-    types:
-      - completed
+  push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
 
-permissions:
-  contents: read
-
 jobs:
-  build-deployment:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  validate:
+    name: Validate Deployment
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout tested commit
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Build Compose deployment images
-        run: docker compose build
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+
+      - name: Build V1
+        run: docker compose build app_v1
+
+      - name: Build V2
+        run: docker compose build app_v2
+
+      - name: Deployment validation successful
+        run: |
+          echo "================================"
+          echo " ZERO-DOWNTIME CI/CD PIPELINE"
+          echo "================================"
+          echo "Compose validation: PASS"
+          echo "V1 build: PASS"
+          echo "V2 build: PASS"
+          echo "Pipeline validation: PASS"
