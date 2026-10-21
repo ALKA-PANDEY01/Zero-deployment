@@ -13,6 +13,7 @@ COPY controller/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY controller/main.py ./main.py
+COPY controller/risk_model.py ./risk_model.py
 COPY controller/dashboard.html ./dashboard.html
 
 EXPOSE 9000

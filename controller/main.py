@@ -1,4 +1,5 @@
 import asyncio
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -9,6 +10,11 @@ import httpx
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+
+try:
+    from .risk_model import predict_deployment_risk
+except ImportError:
+    from risk_model import predict_deployment_risk
 
 
 DASHBOARD_HTML = Path(__file__).with_name('dashboard.html').read_text(encoding='utf-8')
@@ -60,6 +66,11 @@ CANARY_STEP_SECONDS = float(
 MAX_CANARY_ERROR_RATE = float(
     os.getenv("MAX_CANARY_ERROR_RATE", "0.10")
 )
+
+ML_RISK_ROLLBACK_THRESHOLD = float(
+    os.getenv("ML_RISK_ROLLBACK_THRESHOLD", "0.65")
+)
+V2_CONTAINER = os.getenv("V2_CONTAINER", "zerodown-app-v2")
 
 
 # --------------------------------------------------
@@ -304,16 +315,75 @@ async def set_v2_demo_failure(enabled: bool):
     response.raise_for_status()
 
 
+def get_v2_resource_metrics():
+    """Read current V2 CPU and memory usage from Docker stats."""
+    try:
+        container = docker.from_env().containers.get(V2_CONTAINER)
+        stats = container.stats(stream=False)
+        cpu_stats = stats.get("cpu_stats", {})
+        previous_cpu = stats.get("precpu_stats", {})
+        cpu_usage = cpu_stats.get("cpu_usage", {})
+        previous_usage = previous_cpu.get("cpu_usage", {})
+        cpu_delta = cpu_usage.get("total_usage", 0) - previous_usage.get("total_usage", 0)
+        system_delta = cpu_stats.get("system_cpu_usage", 0) - previous_cpu.get("system_cpu_usage", 0)
+        online_cpus = cpu_stats.get("online_cpus") or len(cpu_usage.get("percpu_usage", [])) or 1
+        cpu_percent = (cpu_delta / system_delta * online_cpus * 100) if system_delta > 0 else None
+
+        memory_stats = stats.get("memory_stats", {})
+        memory_usage = memory_stats.get("usage")
+        memory_limit = memory_stats.get("limit")
+        memory_percent = (memory_usage / memory_limit * 100) if memory_usage is not None and memory_limit else None
+        return {
+            "cpu_percent": max(0.0, min(100.0, cpu_percent)) if cpu_percent is not None else None,
+            "memory_percent": max(0.0, min(100.0, memory_percent)) if memory_percent is not None else None,
+        }
+    except Exception as error:
+        return {"cpu_percent": None, "memory_percent": None, "resource_error": str(error)}
+
+
+def percentile_95(values):
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    return ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)]
+
+
+async def score_canary_metrics(metrics):
+    resource_metrics = await asyncio.to_thread(get_v2_resource_metrics)
+    metrics.update(resource_metrics)
+    prediction = predict_deployment_risk(metrics)
+    record(
+        f"Deployment risk: {prediction['risk_percent']}% - "
+        f"{prediction['risk_level']}"
+    )
+    record(
+        "ML metrics: "
+        f"CPU={metrics.get('cpu_percent')}, "
+        f"memory={metrics.get('memory_percent')}, "
+        f"p95_latency_ms={metrics.get('p95_latency_ms', 0):.1f}, "
+        f"error_rate={metrics.get('error_rate', 0):.1%}, "
+        f"http_5xx_rate={metrics.get('http_5xx_rate', 0):.1%}, "
+        f"success_rate={metrics.get('success_rate', 0):.1%}, "
+        f"health={'pass' if metrics.get('health_ok') else 'fail'}"
+    )
+    return prediction
+
+
 async def monitor_canary(
     v2_percent: int,
     observation_seconds: float,
     simulate_failure: bool = False,
 ):
-    """Check V2 health and sample gateway errors during a traffic stage."""
+    """Sample release signals and stop the canary when predicted risk is high."""
     requests = 0
     errors = 0
+    server_errors = 0
+    successes = 0
     v1_responses = 0
     v2_responses = 0
+    health_checks = 0
+    health_failures = 0
+    latencies_ms = []
     failure_injected = False
     started = time.monotonic()
     deadline = started + observation_seconds
@@ -330,24 +400,44 @@ async def monitor_canary(
                 failure_injected = True
                 record("Demo injected V2 health failure")
 
+            health_started = time.perf_counter()
             healthy, health_message = await check_endpoint(
                 V2_URL,
                 "/health",
                 "v2",
             )
+            latencies_ms.append((time.perf_counter() - health_started) * 1000)
+            health_checks += 1
             if not healthy:
+                health_failures += 1
+                metrics = {
+                    "requests": requests,
+                    "error_rate": errors / requests if requests else 1.0,
+                    "http_5xx_rate": server_errors / requests if requests else 1.0,
+                    "success_rate": successes / requests if requests else 0.0,
+                    "p95_latency_ms": percentile_95(latencies_ms),
+                    "health_ok": False,
+                }
+                prediction = await score_canary_metrics(metrics)
                 record(
                     f"Canary monitor failed at V2={v2_percent}%: "
                     f"{health_message}"
                 )
-                return False, health_message
+                return False, (
+                    f"{health_message}; ML risk "
+                    f"{prediction['risk_percent']}% {prediction['risk_level']}"
+                )
 
             requests += 1
             try:
                 response = await client.get(f"{GATEWAY_URL}/")
+                latencies_ms.append(response.elapsed.total_seconds() * 1000)
                 if response.status_code != 200:
                     errors += 1
+                    if response.status_code >= 500:
+                        server_errors += 1
                 else:
+                    successes += 1
                     version = response.json().get("version")
                     if version == "v1":
                         v1_responses += 1
@@ -355,19 +445,35 @@ async def monitor_canary(
                         v2_responses += 1
                     else:
                         errors += 1
+                        successes -= 1
             except Exception:
                 errors += 1
 
             await asyncio.sleep(0.2)
 
     error_rate = errors / requests if requests else 1.0
+    metrics = {
+        "requests": requests,
+        "error_rate": error_rate,
+        "http_5xx_rate": server_errors / requests if requests else 1.0,
+        "success_rate": successes / requests if requests else 0.0,
+        "p95_latency_ms": percentile_95(latencies_ms),
+        "health_ok": health_failures == 0 and health_checks > 0,
+    }
+    prediction = await score_canary_metrics(metrics)
     message = (
         f"V2={v2_percent}%: {requests} gateway requests, "
         f"V1 responses={v1_responses}, V2 responses={v2_responses}, "
-        f"errors={errors} ({error_rate:.1%})"
+        f"errors={errors} ({error_rate:.1%}), "
+        f"risk={prediction['risk_percent']}% {prediction['risk_level']}"
     )
     record(f"Canary metrics: {message}")
 
+    if prediction["probability"] >= ML_RISK_ROLLBACK_THRESHOLD:
+        return False, (
+            f"ML risk {prediction['risk_percent']}% "
+            f"{prediction['risk_level']} exceeded rollback threshold"
+        )
     if not requests:
         return False, "Canary monitor received no gateway responses"
     if error_rate > MAX_CANARY_ERROR_RATE:

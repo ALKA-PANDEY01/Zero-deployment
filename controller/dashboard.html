@@ -16,12 +16,13 @@
     h1,h2,p { margin:0; } h1 { font-size:clamp(21px,4vw,30px); letter-spacing:-.04em; } .subtitle,.muted { color:var(--muted); }
     .live { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:13px; white-space:nowrap; }
     .dot { width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 12px #4ade8080; }
-    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:15px; }
     .card { background:linear-gradient(145deg,#1a2836,#16222e); border:1px solid var(--line); border-radius:17px; padding:20px; box-shadow:0 14px 38px #0002; }
     .label { color:var(--muted); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; }
     .value { margin-top:9px; font-size:24px; font-weight:700; letter-spacing:-.03em; overflow-wrap:anywhere; }
     .detail { margin-top:5px; color:var(--muted); font-size:13px; }
     .progress-card,.actions-card,.events-card { grid-column:1/-1; }
+    .risk-low { color:var(--green); } .risk-medium { color:var(--amber); } .risk-high { color:var(--red); }
     .progress-head { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:14px; }
     .progress-head h2,.events-head h2 { font-size:17px; }
     .progress-value { color:var(--blue); font-weight:700; }
@@ -44,6 +45,7 @@
     .event time { color:var(--muted); font-variant-numeric:tabular-nums; }
     .event span { overflow-wrap:anywhere; }
     .empty { color:var(--muted); padding:12px 2px; }
+    @media (max-width:900px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width:720px) { .grid { grid-template-columns:1fr; } .progress-card,.actions-card,.events-card { grid-column:auto; } header { align-items:flex-start; flex-direction:column; } .value { font-size:21px; } }
     @media (max-width:430px) { .shell { width:calc(100% - 22px); padding-top:22px; } .card { padding:16px; } .stages { font-size:10px; } .event { grid-template-columns:1fr; gap:2px; } }
   </style>
@@ -51,7 +53,7 @@
 <body>
   <main class="shell">
     <header>
-      <div class="brand"><div class="mark" aria-hidden="true">?</div><div><h1>Zero Downtime</h1><p class="subtitle">Deployment control room</p></div></div>
+      <div class="brand"><div class="mark" aria-hidden="true">&#8599;</div><div><h1>Zero Downtime</h1><p class="subtitle">Deployment control room</p></div></div>
       <div class="live"><span class="dot" id="live-dot"></span><span id="updated">Connecting to controller…</span></div>
     </header>
 
@@ -59,6 +61,7 @@
       <article class="card"><div class="label">Deployment</div><div class="value" id="deployment-state">Loading</div><div class="detail" id="deployment-detail">Reading controller status</div></article>
       <article class="card"><div class="label">Proxy health</div><div class="value" id="proxy-state">Checking</div><div class="detail" id="proxy-detail">Waiting for proxy response</div></article>
       <article class="card"><div class="label">V2 traffic</div><div class="value" id="traffic-value">0%</div><div class="detail" id="traffic-detail">V1 receives traffic</div></article>
+      <article class="card"><div class="label">ML deployment risk</div><div class="value" id="risk-value">Not scored</div><div class="detail" id="risk-detail">Prototype logistic model - sample training cases</div><div class="detail" id="metric-summary">Signals: CPU, memory, latency, errors, success, health</div></article>
 
       <article class="card progress-card">
         <div class="progress-head"><h2>Canary rollout</h2><span class="progress-value" id="progress-label">Ready</span></div>
@@ -146,6 +149,13 @@
       : (status.message || 'Ready to deploy');
 
     const steps = status.steps || [];
+    const riskEvent = [...steps].reverse().find((step) => (step.message || '').startsWith('Deployment risk:'));
+    const riskMatch = riskEvent && riskEvent.message.match(/Deployment risk: (\d+)% - (LOW|MEDIUM|HIGH)/);
+    const riskValue = byId('risk-value');
+    riskValue.textContent = riskMatch ? `${riskMatch[1]}% - ${riskMatch[2]}` : 'Not scored';
+    riskValue.className = `value ${riskMatch ? `risk-${riskMatch[2].toLowerCase()}` : ''}`;
+    const metricsEvent = [...steps].reverse().find((step) => (step.message || '').startsWith('ML metrics:'));
+    byId('metric-summary').textContent = metricsEvent ? metricsEvent.message : 'Signals: CPU, memory, latency, errors, success, health';
     const activeStage = [...steps].reverse().map((step) => (step.message || '').match(/Canary stage started: V2=(\d+)%/)).find(Boolean);
     let percent = activeStage ? Number(activeStage[1]) : 0;
     if (state === 'succeeded') percent = 100;
