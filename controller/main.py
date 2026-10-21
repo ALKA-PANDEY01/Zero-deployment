@@ -2,11 +2,16 @@ import asyncio
 import os
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import docker
 import httpx
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
+
+
+DASHBOARD_HTML = Path(__file__).with_name('dashboard.html').read_text(encoding='utf-8')
 
 
 app = FastAPI(
@@ -535,9 +540,35 @@ async def deployment_job(
 
 
 # --------------------------------------------------
-# CONTROLLER HEALTH
+# DASHBOARD
 # --------------------------------------------------
 
+@app.get("/", response_class=HTMLResponse)
+def deployment_dashboard():
+    return DASHBOARD_HTML
+
+
+@app.get("/dashboard/proxy-health")
+async def dashboard_proxy_health():
+    try:
+        async with httpx.AsyncClient(timeout=3) as client:
+            response = await client.get(f"{GATEWAY_URL}/health")
+        payload = response.json()
+        return {
+            "healthy": response.status_code == 200,
+            "status_code": response.status_code,
+            "version": payload.get("version"),
+        }
+    except Exception as error:
+        return {
+            "healthy": False,
+            "error": str(error),
+        }
+
+
+# --------------------------------------------------
+# CONTROLLER HEALTH
+# --------------------------------------------------
 @app.get("/health")
 def controller_health():
 
