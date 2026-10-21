@@ -1,4 +1,4 @@
-﻿name: Zero Downtime Deployment
+name: Zero Downtime Deployment
 
 on:
   push:
@@ -16,6 +16,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install -r app/requirements.txt -r controller/requirements.txt -r tests/requirements.txt
+
+      - name: Run test suite
+        run: python -m pytest -q
 
       - name: Validate Docker Compose
         run: docker compose config --quiet
