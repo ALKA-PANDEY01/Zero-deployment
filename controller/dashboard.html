@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101923">
+  <meta name="theme-color" content="#f4f7fb">
   <title>Zero Downtime | Control Room</title>
   <style>
-    :root { color-scheme: dark; --bg:#101923; --panel:#182431; --line:#2b3a49; --muted:#91a2b5; --text:#edf4fb; --green:#4ade80; --red:#fb7185; --blue:#60a5fa; --amber:#fbbf24; }
+    :root { color-scheme:light; --bg:#f3f6fb; --panel:#ffffff; --line:#dbe3ee; --muted:#64748b; --text:#172338; --green:#15803d; --red:#be123c; --blue:#2563eb; --amber:#a16207; }
     * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:radial-gradient(ellipse at 15% 0%,#1b3342 0,transparent 42%),var(--bg); color:var(--text); font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    body { margin:0; min-height:100vh; background:radial-gradient(ellipse at 15% 0%,#dceaff 0,transparent 43%),var(--bg); color:var(--text); font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
     .shell { width:min(1120px,calc(100% - 36px)); margin:0 auto; padding:34px 0 48px; }
     header { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:28px; }
     .brand { display:flex; gap:13px; align-items:center; }
-    .mark { display:grid; place-items:center; width:44px; height:44px; border:1px solid #36556a; border-radius:14px; background:#1b3545; color:var(--green); font-size:21px; }
+    .mark { display:grid; place-items:center; width:44px; height:44px; border:1px solid #bfdbfe; border-radius:14px; background:#e8f1ff; color:var(--blue); font-size:21px; }
     h1,h2,p { margin:0; } h1 { font-size:clamp(21px,4vw,30px); letter-spacing:-.04em; } .subtitle,.muted { color:var(--muted); }
     .live { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:13px; white-space:nowrap; }
-    .dot { width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 12px #4ade8080; }
+    .dot { width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 0 4px #dcfce7; }
     .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:15px; }
-    .card { background:linear-gradient(145deg,#1a2836,#16222e); border:1px solid var(--line); border-radius:17px; padding:20px; box-shadow:0 14px 38px #0002; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:17px; padding:20px; box-shadow:0 8px 24px #1e3a5f0d; }
     .label { color:var(--muted); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; }
     .value { margin-top:9px; font-size:24px; font-weight:700; letter-spacing:-.03em; overflow-wrap:anywhere; }
     .detail { margin-top:5px; color:var(--muted); font-size:13px; }
@@ -26,22 +26,23 @@
     .progress-head { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:14px; }
     .progress-head h2,.events-head h2 { font-size:17px; }
     .progress-value { color:var(--blue); font-weight:700; }
-    .track { height:12px; border-radius:999px; background:#0d151e; overflow:hidden; border:1px solid #2b3a49; }
-    .bar { height:100%; width:0; border-radius:inherit; background:linear-gradient(90deg,#34d399,#60a5fa); transition:width .45s ease; }
+    .track { height:12px; border-radius:999px; background:#e8edf5; overflow:hidden; border:1px solid var(--line); }
+    .bar { height:100%; width:0; border-radius:inherit; background:linear-gradient(90deg,#22c55e,#3b82f6); transition:width .45s ease; }
     .stages { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:13px; color:var(--muted); font-size:12px; text-align:center; }
-    .stage { padding:7px 4px; border:1px solid var(--line); border-radius:9px; }
-    .stage.current { color:var(--text); border-color:#4886bd; background:#1d3447; }
+    .stage { padding:7px 4px; border:1px solid var(--line); border-radius:9px; background:#f8fafc; }
+    .stage.current { color:#1d4ed8; border-color:#93c5fd; background:#eff6ff; }
     .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
-    button { appearance:none; border:1px solid #3b5368; border-radius:10px; padding:10px 15px; background:#22384a; color:var(--text); font:inherit; font-weight:650; cursor:pointer; transition:filter .15s,transform .15s; }
-    button:hover:not(:disabled) { filter:brightness(1.18); transform:translateY(-1px); }
-    button:disabled { opacity:.45; cursor:not-allowed; }
-    button.primary { border-color:#16825a; background:#126642; }
-    button.danger { border-color:#8b3d4c; background:#582b37; }
+    button { appearance:none; border:1px solid #cbd5e1; border-radius:10px; padding:10px 15px; background:#f8fafc; color:var(--text); font:inherit; font-weight:650; cursor:pointer; transition:filter .15s,transform .15s,box-shadow .15s; }
+    button:hover:not(:disabled) { filter:brightness(.98); transform:translateY(-1px); box-shadow:0 4px 12px #1e3a5f18; }
+    button:focus-visible { outline:3px solid #93c5fd; outline-offset:2px; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    button.primary { border-color:#15803d; background:#15803d; color:#fff; }
+    button.danger { border-color:#fecdd3; background:#fff1f2; color:#be123c; }
     .notice { min-height:22px; margin-top:12px; color:var(--muted); font-size:13px; }
     .notice.error { color:var(--red); }
     .events-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
     .events { display:grid; gap:8px; max-height:300px; overflow:auto; }
-    .event { display:grid; grid-template-columns:104px 1fr; gap:12px; padding:9px 10px; border-radius:9px; background:#111b25; font-size:13px; }
+    .event { display:grid; grid-template-columns:104px 1fr; gap:12px; padding:9px 10px; border:1px solid #edf1f6; border-radius:9px; background:#f8fafc; font-size:13px; }
     .event time { color:var(--muted); font-variant-numeric:tabular-nums; }
     .event span { overflow-wrap:anywhere; }
     .empty { color:var(--muted); padding:12px 2px; }
