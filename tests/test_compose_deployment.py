@@ -38,7 +38,10 @@ def test_proxy_serves_traffic_through_canary_deployment():
         with httpx.Client(timeout=1) as client:
             while not stop_probes.is_set():
                 try:
-                    response = client.get(f"{gateway_url}/")
+                    response = client.get(
+                        f"{gateway_url}/",
+                        headers={"Connection": "close"},
+                    )
                     result = (
                         response.status_code,
                         response.json().get("version"),

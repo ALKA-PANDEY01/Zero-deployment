@@ -50,7 +50,7 @@ jobs:
           E2E_CONTROLLER_URL: http://localhost:9000
           E2E_GATEWAY_URL: http://localhost:8080
         run: |
-          pytest -q tests
+          python -m pytest -q tests
 
       - name: Stop Compose stack
         if: always()
