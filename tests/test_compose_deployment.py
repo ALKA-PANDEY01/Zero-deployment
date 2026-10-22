@@ -20,8 +20,14 @@ def test_proxy_serves_traffic_through_canary_deployment():
     timeout = httpx.Timeout(3)
 
     status = httpx.get(f"{controller_url}/status", timeout=timeout).json()
+    assert not status.get("active"), "A deployment is already running"
     assert status["status"] not in {"validating", "rolling_back"}
     previous_started_at = status.get("started_at")
+
+    # Restore the stable route before checking the gateway: an earlier
+    # successful rollout may have left the public endpoint on V2.
+    rollback = httpx.post(f"{controller_url}/rollback", timeout=timeout)
+    assert rollback.status_code == 200
 
     ready_deadline = time.monotonic() + 30
     baseline = None
@@ -39,9 +45,6 @@ def test_proxy_serves_traffic_through_canary_deployment():
         time.sleep(0.25)
     assert baseline is not None, "V1 was not ready before starting the rollout"
 
-    # Establish a deterministic V1 baseline before starting the rollout.
-    rollback = httpx.post(f"{controller_url}/rollback", timeout=timeout)
-    assert rollback.status_code == 200
     baseline = httpx.get(f"{gateway_url}/health", timeout=timeout)
     assert baseline.status_code == 200
     assert baseline.json()["version"] == "v1"
