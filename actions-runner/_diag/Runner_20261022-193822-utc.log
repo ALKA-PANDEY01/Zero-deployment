@@ -122,3 +122,16 @@
 [2026-10-22 19:38:22Z INFO RunnerServer] EstablishVssConnection
 [2026-10-22 19:38:22Z INFO RunnerServer] Establish connection with 60 seconds timeout.
 [2026-10-22 19:38:22Z INFO GitHubActionsService] Starting operation Location.GetConnectionData
+[2026-10-22 19:38:23Z INFO GitHubActionsService] Finished operation Location.GetConnectionData
+[2026-10-22 19:38:23Z INFO GitHubActionsService] Finished operation Location.GetConnectionData
+[2026-10-22 19:38:23Z INFO GitHubActionsService] Finished operation Location.GetConnectionData
+[2026-10-22 19:38:23Z INFO BrokerMessageListener] VssConnection created
+[2026-10-22 19:38:23Z INFO Terminal] WRITE LINE: 
+[2026-10-22 19:38:23Z INFO Terminal] WRITE LINE: 
+[2026-10-22 19:38:23Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 19:38:23Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 19:38:25Z INFO GitHubActionsService] AAD Correlation ID for this token request: Unknown
+[2026-10-22 19:38:26Z INFO BrokerMessageListener] Session created.
+[2026-10-22 19:38:26Z INFO Terminal] WRITE LINE: Current runner version: '2.337.0'
+[2026-10-22 19:38:26Z INFO Terminal] WRITE LINE: 2026-10-22 19:38:26Z: Listening for Jobs
+[2026-10-22 19:38:26Z INFO JobDispatcher] Set runner/worker IPC timeout to 30 seconds.

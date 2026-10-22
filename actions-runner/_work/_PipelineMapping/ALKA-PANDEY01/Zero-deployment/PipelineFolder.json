@@ -1,0 +1,12 @@
+﻿{
+  "repositoryName": "ALKA-PANDEY01/Zero-deployment",
+  "pipelineDirectory": "Zero-deployment",
+  "workspaceDirectory": "Zero-deployment\\Zero-deployment",
+  "repositories": {
+    "ALKA-PANDEY01/Zero-deployment": {
+      "repositoryPath": "Zero-deployment\\Zero-deployment",
+      "lastRunOn": "10/23/2026 01:18:04 +05:30"
+    }
+  },
+  "lastRunOn": "10/23/2026 01:49:09 +05:30"
+}
