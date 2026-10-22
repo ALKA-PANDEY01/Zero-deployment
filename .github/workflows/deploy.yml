@@ -1,18 +1,23 @@
-name: Zero Downtime Deployment
+name: Test and deploy with ZeroDown
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: zerodown-deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Validate Deployment
-    runs-on: ubuntu-latest
-
+  test-build-deploy:
+    name: Test, publish image, and request rollout
+    runs-on: [self-hosted, Windows, X64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,27 +27,105 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install test dependencies
-        run: python -m pip install -r app/requirements.txt -r controller/requirements.txt -r tests/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install -r app/requirements.txt
+          python -m pip install -r controller/requirements.txt
+          python -m pip install -r tests/requirements.txt
 
-      - name: Run test suite
-        run: python -m pytest -q
+      - name: Run tests
+        run: python -m pytest -q tests
 
-      - name: Validate Docker Compose
+      - name: Validate Compose configuration
         run: docker compose config --quiet
 
-      - name: Build V1
-        run: docker compose build app_v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build V2
-        run: docker compose build app_v2
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Deployment validation successful
+      - name: Identify immutable application image
+        id: image
+        shell: bash
         run: |
-          echo "================================"
-          echo " ZERO-DOWNTIME CI/CD PIPELINE"
-          echo "================================"
-          echo "Compose validation: PASS"
-          echo "V1 build: PASS"
-          echo "V2 build: PASS"
-          echo "Pipeline validation: PASS"
+          echo "ref=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish application image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          tags: ${{ steps.image.outputs.ref }}
+
+      - name: Trigger ZeroDown and wait for rollout
+        shell: bash
+        env:
+          ZERODOWN_URL: ${{ secrets.ZERODOWN_URL }}
+          ZERODOWN_DEPLOY_TOKEN: ${{ secrets.ZERODOWN_DEPLOY_TOKEN }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$ZERODOWN_URL" || -z "$ZERODOWN_DEPLOY_TOKEN" ]]; then
+            echo "Set the ZERODOWN_URL and ZERODOWN_DEPLOY_TOKEN repository secrets."
+            exit 1
+          fi
+          if [[ "$ZERODOWN_URL" != https://* \
+            && "$ZERODOWN_URL" != http://localhost:* \
+            && "$ZERODOWN_URL" != http://127.0.0.1:* ]]; then
+            echo "Use HTTPS for remote controllers; HTTP is allowed only for localhost."
+            exit 1
+          fi
+          ZERODOWN_URL="${ZERODOWN_URL%/}"
+
+          request_file="$(mktemp)"
+          trap 'rm -f "$request_file"' EXIT
+          python -c 'import json, os; print(json.dumps({"image": os.environ["IMAGE_REF"], "registry_username": os.environ["GHCR_USERNAME"], "registry_token": os.environ["GHCR_TOKEN"]}))' > "$request_file"
+
+          accepted="$(curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 30 \
+            -X POST "$ZERODOWN_URL/api/v1/deploy" \
+            -H "Authorization: Bearer $ZERODOWN_DEPLOY_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$request_file")"
+          if ! python -c 'import json, sys; data=json.load(sys.stdin); sys.exit(0 if data.get("accepted") is True and isinstance(data.get("deployment_id"), str) else 1)' <<< "$accepted"; then
+            echo "ZeroDown did not accept the deployment request."
+            exit 1
+          fi
+
+          deployment_id="$(python -c 'import json, sys; print(json.load(sys.stdin)["deployment_id"])' <<< "$accepted")"
+          echo "ZeroDown accepted deployment $deployment_id for image $IMAGE_REF."
+
+          for ((attempt=1; attempt<=180; attempt++)); do
+            if status_json="$(curl --fail --silent --show-error \
+              --connect-timeout 10 --max-time 20 \
+              "$ZERODOWN_URL/deployment/status")"; then
+              current_id="$(python -c 'import json, sys; print(json.load(sys.stdin).get("deployment_id") or "")' <<< "$status_json")"
+              phase="$(python -c 'import json, sys; print(json.load(sys.stdin).get("status") or "")' <<< "$status_json")"
+
+              if [[ "$current_id" == "$deployment_id" ]]; then
+                case "$phase" in
+                  SUCCESS)
+                    echo "ZeroDown rollout completed successfully."
+                    exit 0
+                    ;;
+                  ROLLBACK|FAILED)
+                    echo "ZeroDown rollout ended with phase $phase:"
+                    python -c 'import json, sys; d=json.load(sys.stdin); print(json.dumps({k:d.get(k) for k in ("status", "message", "rollback")}))' <<< "$status_json"
+                    exit 1
+                    ;;
+                esac
+              fi
+            fi
+            sleep 5
+          done
+
+          echo "Timed out waiting for ZeroDown deployment $deployment_id."
+          exit 1

@@ -129,6 +129,76 @@ def test_proxy_serves_traffic_through_canary_deployment():
     not CONTROLLER_URL or not GATEWAY_URL,
     reason="Set E2E_CONTROLLER_URL and E2E_GATEWAY_URL to run Compose integration tests",
 )
+def test_demo_health_failure_automatically_rolls_back_and_preserves_logs():
+    controller_url = CONTROLLER_URL.rstrip("/")
+    gateway_url = GATEWAY_URL.rstrip("/")
+    timeout = httpx.Timeout(10)
+    previous_started_at = httpx.get(
+        f"{controller_url}/status",
+        timeout=timeout,
+    ).json()["started_at"]
+
+    start = httpx.post(
+        f"{controller_url}/demo/failure",
+        json={"observation_seconds": 1},
+        timeout=timeout,
+    )
+    assert start.status_code == 200, start.text
+
+    deadline = time.monotonic() + 120
+    final_status = None
+    while time.monotonic() < deadline:
+        current = httpx.get(
+            f"{controller_url}/deployment/status",
+            timeout=timeout,
+        ).json()
+        if (
+            current["started_at"] != previous_started_at
+            and current["finished_at"] is not None
+        ):
+            final_status = current
+            break
+        time.sleep(0.25)
+
+    assert final_status is not None, "Failure demo did not finish in time"
+    assert final_status["status"] == "ROLLBACK"
+    assert final_status["traffic"] == 0
+    assert final_status["health"] == "unhealthy"
+    assert final_status["rollback"]["status"] == "ROLLBACK"
+    assert final_status["rollback"]["reason"] == "health_check_failed"
+    assert final_status["rollback"]["detail"].startswith(
+        "/health returned HTTP 500"
+    )
+    assert final_status["rollback"]["failed_version"] == "v2"
+    assert final_status["rollback"]["traffic_at_failure"] == 25
+    assert final_status["rollback"]["stable_version"] == "v1"
+    assert final_status["metrics"]["health_ok"] is False
+    assert "GET /health HTTP/1.1\" 500" in final_status["candidate_logs"]
+    messages = [
+        step["message"]
+        for step in httpx.get(
+            f"{controller_url}/status",
+            timeout=timeout,
+        ).json()["steps"]
+    ]
+    assert "Canary stage started: V2=10%" in messages
+    assert "Canary stage started: V2=25%" in messages
+    assert not any("Canary stage started: V2=50%" in message for message in messages)
+
+    gateway = httpx.get(f"{gateway_url}/health", timeout=timeout)
+    assert gateway.status_code == 200
+    assert gateway.json()["version"] == "v1"
+    removed = httpx.get(
+        f"{controller_url}/api/v1/versions/v2",
+        timeout=timeout,
+    )
+    assert removed.status_code == 404
+
+
+@pytest.mark.skipif(
+    not CONTROLLER_URL or not GATEWAY_URL,
+    reason="Set E2E_CONTROLLER_URL and E2E_GATEWAY_URL to run Compose integration tests",
+)
 def test_docker_version_api_runs_v1_and_v2_independently():
     controller_url = CONTROLLER_URL.rstrip("/")
     timeout = httpx.Timeout(120)

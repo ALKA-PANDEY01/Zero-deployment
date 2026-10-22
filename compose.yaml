@@ -54,6 +54,7 @@ services:
       ZERODOWN_PROJECT_ROOT: /workspace
       ZERODOWN_DOCKER_NETWORK: zerodown
       RISK_TELEMETRY_PATH: /data/risk-telemetry.jsonl
+      ZERODOWN_DEPLOY_TOKEN: ${ZERODOWN_DEPLOY_TOKEN:-}
 
     volumes:
       - .:/workspace:ro

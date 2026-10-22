@@ -1,0 +1,11 @@
+﻿{
+  "agentId": 21,
+  "agentName": "LAPTOP-244DKN09",
+  "poolId": 1,
+  "poolName": "Default",
+  "serverUrl": "https://pipelinesghubeus14.actions.githubusercontent.com/7AuX2pypzlPXsE83ptP4zWxQ3GvUoLNCJp6z9ocP64I8v2lMGV/",
+  "gitHubUrl": "https://github.com/ALKA-PANDEY01/Zero-deployment",
+  "workFolder": "_work",
+  "useV2Flow": true,
+  "serverUrlV2": "https://broker.actions.githubusercontent.com/"
+}

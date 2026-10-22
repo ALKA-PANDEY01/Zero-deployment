@@ -80,10 +80,15 @@ class FakeContainers:
 class FakeImages:
     def __init__(self):
         self.calls = []
+        self.pull_calls = []
 
     def build(self, **kwargs):
         self.calls.append(kwargs)
         return FakeImage(), []
+
+    def pull(self, image, auth_config=None):
+        self.pull_calls.append((image, auth_config))
+        return FakeImage()
 
 
 class FakeDockerClient:
@@ -113,6 +118,22 @@ def test_manager_builds_within_project_and_generates_unique_version_names(tmp_pa
     assert manager.container_name("Demo App", "v1") == "zerodown-demo-app-v1"
     assert manager.container_name("Demo App", "v2") == "zerodown-demo-app-v2"
     assert manager.image_tag("Demo App", "v1") != manager.image_tag("Demo App", "v2")
+
+
+def test_manager_pulls_ci_image_using_supplied_registry_credentials():
+    client = FakeDockerClient()
+    manager = DockerManager(client=client)
+    credentials = {"username": "ci-user", "password": "ci-token"}
+
+    image_id = manager.pull_image(
+        "ghcr.io/example/demo-app:" + "a" * 40,
+        credentials,
+    )
+
+    assert image_id == FakeImage.id
+    assert client.images.pull_calls == [
+        ("ghcr.io/example/demo-app:" + "a" * 40, credentials),
+    ]
 
 
 def test_manager_rejects_build_context_outside_project_root(tmp_path):

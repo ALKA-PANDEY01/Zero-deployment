@@ -1,14 +1,17 @@
 import asyncio
+import hmac
 import json
 import math
 import os
+import re
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 import docker
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -106,6 +109,7 @@ deployment_state = {
     "steps": [],
     "started_at": None,
     "finished_at": None,
+    "deployment_id": None,
     "version": "v2",
     "traffic": 0,
     "health": "unknown",
@@ -124,6 +128,9 @@ app.state.deployment_task = None
 
 class DeployRequest(BaseModel):
     observation_seconds: int | None = None
+    image: str | None = None
+    registry_username: str | None = None
+    registry_token: str | None = None
 
 
 def app_url(version: str) -> str:
@@ -209,26 +216,41 @@ def candidate_app_url() -> str:
     )
 
 
-async def build_and_start_v2() -> None:
+async def build_and_start_v2(
+    image_ref: str | None = None,
+    registry_auth: dict[str, str] | None = None,
+) -> None:
     config = app.state.zerodown_config
     manager = app.state.docker_manager
     container_name = candidate_container_name()
-    image_tag = manager.image_tag(config.app.name, "v2")
+    image_tag = image_ref or manager.image_tag(config.app.name, "v2")
 
     if await asyncio.to_thread(manager.container_exists, container_name):
         await asyncio.to_thread(manager.remove_container, container_name)
 
-    image_id = await asyncio.to_thread(
-        manager.build_image,
-        config.app.build_context,
-        config.app.dockerfile,
-        image_tag,
-    )
-    record(
-        f"Built V2 image {image_tag} ({image_id})",
-        "starting",
-        DeploymentPhase.STARTING,
-    )
+    if image_ref:
+        image_id = await asyncio.to_thread(
+            manager.pull_image,
+            image_ref,
+            registry_auth,
+        )
+        record(
+            f"Pulled V2 image {image_tag} ({image_id})",
+            "starting",
+            DeploymentPhase.STARTING,
+        )
+    else:
+        image_id = await asyncio.to_thread(
+            manager.build_image,
+            config.app.build_context,
+            config.app.dockerfile,
+            image_tag,
+        )
+        record(
+            f"Built V2 image {image_tag} ({image_id})",
+            "starting",
+            DeploymentPhase.STARTING,
+        )
     details = await asyncio.to_thread(
         manager.start_container,
         image_tag,
@@ -652,10 +674,15 @@ def preserve_and_remove_candidate() -> None:
 async def deployment_job(
     observation_seconds: int,
     simulate_failure: bool = False,
+    image_ref: str | None = None,
+    registry_auth: dict[str, str] | None = None,
 ):
 
     async with deployment_lock:
         deployment_state["active"] = True
+        deployment_state["deployment_id"] = (
+            deployment_state.get("deployment_id") or str(uuid.uuid4())
+        )
         deployment_state["steps"] = []
         deployment_state["progress"] = 0
         deployment_state["traffic"] = 0
@@ -670,7 +697,6 @@ async def deployment_job(
                 timezone.utc
             ).isoformat()
         )
-
         deployment_state["finished_at"] = None
 
         try:
@@ -687,7 +713,10 @@ async def deployment_job(
                 "building",
                 DeploymentPhase.BUILDING,
             )
-            await build_and_start_v2()
+            if image_ref is None:
+                await build_and_start_v2()
+            else:
+                await build_and_start_v2(image_ref, registry_auth)
 
             record(
                 "V2 container started; validating candidate",
@@ -871,6 +900,28 @@ async def dashboard_proxy_health():
         }
 
 
+@app.get("/dashboard/versions")
+def dashboard_versions():
+    manager = app.state.docker_manager
+    traffic_router = app.state.traffic_router
+    versions = {}
+    for version in ("v1", "v2"):
+        container_name = traffic_router.targets[version][1]
+        try:
+            details = manager.inspect_container(container_name)
+        except ValueError:
+            details = None
+        except docker.errors.DockerException as error:
+            details = {
+                "name": container_name,
+                "status": "error",
+                "health": "unknown",
+                "error": str(error),
+            }
+        versions[version] = details
+    return versions
+
+
 # --------------------------------------------------
 # CONTROLLER HEALTH
 # --------------------------------------------------
@@ -896,8 +947,20 @@ def deployment_status():
 @app.get("/deployment/status")
 def deployment_progress_status():
     traffic = app.state.traffic_router.get_traffic()
+    state = deployment_state["status"]
+    stable_version = (
+        "v2"
+        if state == "succeeded" and traffic["v2_percent"] == 100
+        else "v1"
+    )
     return {
         "status": deployment_state["phase"],
+        "application": app.state.zerodown_config.app.name,
+        "deployment_id": deployment_state["deployment_id"],
+        "stable_version": stable_version,
+        "candidate_version": deployment_state["version"],
+        "stages": list(app.state.zerodown_config.rollout.stages),
+        "events": deployment_state["steps"],
         "version": deployment_state["version"],
         "traffic": traffic["v2_percent"],
         "health": deployment_state["health"],
@@ -915,7 +978,12 @@ def deployment_progress_status():
 # START DEPLOYMENT
 # --------------------------------------------------
 
-def schedule_deployment(observation_seconds: int, simulate_failure: bool = False):
+def schedule_deployment(
+    observation_seconds: int,
+    simulate_failure: bool = False,
+    image_ref: str | None = None,
+    registry_auth: dict[str, str] | None = None,
+):
     if deployment_state["active"]:
         raise HTTPException(
             status_code=409,
@@ -929,15 +997,75 @@ def schedule_deployment(observation_seconds: int, simulate_failure: bool = False
         )
 
     deployment_state["active"] = True
+    deployment_state["deployment_id"] = str(uuid.uuid4())
     try:
         task = asyncio.create_task(
-            deployment_job(observation_seconds, simulate_failure)
+            deployment_job(
+                observation_seconds,
+                simulate_failure,
+                image_ref,
+                registry_auth,
+            )
         )
     except Exception:
         deployment_state["active"] = False
         raise
     app.state.deployment_task = task
     return task
+
+
+@app.post("/api/v1/deploy")
+async def start_ci_deployment(
+    request: DeployRequest,
+    authorization: str | None = Header(default=None),
+):
+    expected_token = os.getenv("ZERODOWN_DEPLOY_TOKEN")
+    if not expected_token:
+        raise HTTPException(
+            status_code=503,
+            detail="CI deployment trigger is not configured",
+        )
+    if not authorization or not hmac.compare_digest(
+        authorization.encode("utf-8"),
+        f"Bearer {expected_token}".encode("utf-8"),
+    ):
+        raise HTTPException(status_code=401, detail="Invalid deployment token")
+
+    if (
+        request.image is None
+        or not re.fullmatch(
+            r"ghcr\.io/[a-z0-9][a-z0-9._/-]*:[0-9a-f]{40}",
+            request.image,
+        )
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="image must be an immutable GHCR image tagged with a commit SHA",
+        )
+    if not request.registry_username or not request.registry_token:
+        raise HTTPException(
+            status_code=422,
+            detail="GHCR pull credentials are required",
+        )
+
+    observation_seconds = (
+        request.observation_seconds
+        if request.observation_seconds is not None
+        else app.state.zerodown_config.rollout.observation_seconds
+    )
+    schedule_deployment(
+        observation_seconds,
+        image_ref=request.image,
+        registry_auth={
+            "username": request.registry_username,
+            "password": request.registry_token,
+        },
+    )
+    return {
+        "accepted": True,
+        "deployment_id": deployment_state["deployment_id"],
+        "message": "Deployment started. Check /deployment/status.",
+    }
 
 
 @app.post("/deploy")
@@ -952,6 +1080,7 @@ async def start_deployment(request: DeployRequest):
 
     return {
         "accepted": True,
+        "deployment_id": deployment_state["deployment_id"],
         "message": "Deployment started. Check /deployment/status.",
     }
 

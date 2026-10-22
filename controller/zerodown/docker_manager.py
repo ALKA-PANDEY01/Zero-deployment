@@ -67,6 +67,17 @@ class DockerManager:
     def container_exists(self, name: str) -> bool:
         return self._container(name) is not None
 
+    def pull_image(
+        self,
+        image: str,
+        auth_config: dict[str, str] | None = None,
+    ) -> str:
+        try:
+            pulled = self.client.images.pull(image, auth_config=auth_config)
+        except docker.errors.DockerException as error:
+            raise RuntimeError(f"Docker image pull failed for '{image}'") from error
+        return pulled.id
+
     def build_image(self, build_context: str, dockerfile: str, tag: str) -> str:
         context_path = Path(build_context)
         if not context_path.is_absolute():

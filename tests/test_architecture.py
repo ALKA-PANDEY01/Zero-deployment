@@ -239,6 +239,12 @@ def test_deployment_status_api_reports_live_rollout_fields(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {
         "status": "CANARY_25",
+        "application": "demo-app",
+        "deployment_id": controller.deployment_state["deployment_id"],
+        "stable_version": "v1",
+        "candidate_version": "v2",
+        "stages": [10, 25, 50, 100],
+        "events": controller.deployment_state["steps"],
         "version": "v2",
         "traffic": 25,
         "health": "healthy",
@@ -252,6 +258,45 @@ def test_deployment_status_api_reports_live_rollout_fields(monkeypatch):
     }
 
 
+def test_dashboard_versions_use_router_container_targets(monkeypatch):
+    calls = []
+
+    class FakeDockerManager:
+        @staticmethod
+        def inspect_container(name):
+            calls.append(name)
+            return {
+                "name": name,
+                "status": "running",
+                "health": "healthy",
+            }
+
+    class FakeTrafficRouter:
+        targets = {
+            "v1": ("app_v1", "zerodown-app-v1"),
+            "v2": ("zerodown-demo-app-v2", "zerodown-demo-app-v2"),
+        }
+
+    monkeypatch.setattr(
+        controller.app.state,
+        "docker_manager",
+        FakeDockerManager(),
+    )
+    monkeypatch.setattr(
+        controller.app.state,
+        "traffic_router",
+        FakeTrafficRouter(),
+    )
+
+    with TestClient(controller.app) as client:
+        response = client.get("/dashboard/versions")
+
+    assert response.status_code == 200
+    assert calls == ["zerodown-app-v1", "zerodown-demo-app-v2"]
+    assert response.json()["v1"]["health"] == "healthy"
+    assert response.json()["v2"]["status"] == "running"
+
+
 def test_second_rollout_is_rejected_while_one_is_active(monkeypatch):
     monkeypatch.setitem(controller.deployment_state, "active", True)
 
@@ -260,6 +305,85 @@ def test_second_rollout_is_rejected_while_one_is_active(monkeypatch):
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Deployment already running"
+
+
+def test_ci_deploy_api_requires_configured_bearer_token(monkeypatch):
+    monkeypatch.delenv("ZERODOWN_DEPLOY_TOKEN", raising=False)
+
+    with TestClient(controller.app) as client:
+        response = client.post(
+            "/api/v1/deploy",
+            json={
+                "image": "ghcr.io/example/demo-app:" + "a" * 40,
+                "registry_username": "ci-user",
+                "registry_token": "ci-token",
+            },
+        )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "CI deployment trigger is not configured"
+
+
+def test_ci_deploy_api_schedules_immutable_image_without_exposing_credentials(
+    monkeypatch,
+):
+    token = "controller-deploy-secret"
+    registry_token = "github-actions-registry-secret"
+    image = "ghcr.io/example/demo-app:" + "a" * 40
+    scheduled = []
+    monkeypatch.setenv("ZERODOWN_DEPLOY_TOKEN", token)
+    monkeypatch.setattr(
+        controller,
+        "schedule_deployment",
+        lambda observation_seconds, **kwargs: scheduled.append(
+            (observation_seconds, kwargs)
+        ),
+    )
+
+    with TestClient(controller.app) as client:
+        unauthorized = client.post(
+            "/api/v1/deploy",
+            headers={"Authorization": "Bearer wrong-token"},
+            json={"image": image},
+        )
+        invalid_image = client.post(
+            "/api/v1/deploy",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "image": "ghcr.io/example/demo-app:latest",
+                "registry_username": "ci-user",
+                "registry_token": registry_token,
+            },
+        )
+        response = client.post(
+            "/api/v1/deploy",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "image": image,
+                "registry_username": "ci-user",
+                "registry_token": registry_token,
+            },
+        )
+
+    assert unauthorized.status_code == 401
+    assert invalid_image.status_code == 422
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+    assert response.json()["deployment_id"] == controller.deployment_state["deployment_id"]
+    assert registry_token not in response.text
+    assert token not in response.text
+    assert scheduled == [
+        (
+            controller.app.state.zerodown_config.rollout.observation_seconds,
+            {
+                "image_ref": image,
+                "registry_auth": {
+                    "username": "ci-user",
+                    "password": registry_token,
+                },
+            },
+        ),
+    ]
 
 
 def test_configured_application_port_drives_controller(monkeypatch):
