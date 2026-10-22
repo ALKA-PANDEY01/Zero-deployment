@@ -824,3 +824,422 @@
 [2026-10-22 20:38:18Z ERR  BrokerServer] System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
 [2026-10-22 20:38:18Z WARN BrokerServer] Back off 7.449 seconds before next retry. 4 attempt left.
 [2026-10-22 20:38:18Z INFO BrokerMessageListener] Get messages has been cancelled using local token source. Continue to get messages with new status.
+[2026-10-22 20:52:14Z INFO BrokerMessageListener] Acknowledging runner request '002da364-3476-56d0-acfa-06a96af4e35b'.
+[2026-10-22 20:52:14Z INFO ConfigurationStore] HasCredentials()
+[2026-10-22 20:52:14Z INFO ConfigurationStore] stored True
+[2026-10-22 20:52:14Z INFO CredentialManager] GetCredentialProvider
+[2026-10-22 20:52:14Z INFO CredentialManager] Creating type OAuth
+[2026-10-22 20:52:14Z INFO CredentialManager] Creating credential type: OAuth
+[2026-10-22 20:52:14Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:52:14Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:52:14Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:52:16Z INFO GitHubActionsService] AAD Correlation ID for this token request: Unknown
+[2026-10-22 20:52:17Z INFO JobDispatcher] Job request 0 for plan beaa2880-a3b1-8053-adf7-14b3aa2102d0 job 002da364-3476-56d0-acfa-06a96af4e35b received.
+[2026-10-22 20:52:17Z INFO JobDispatcher] Pull OrchestrationId beaa2880-a3b1-8053-adf7-14b3aa2102d0.test-build-deploy.__default from JWT claims
+[2026-10-22 20:52:17Z INFO BrokerMessageListener] Received job status event. JobState: Busy
+[2026-10-22 20:52:17Z INFO BrokerMessageListener] _getMessagesTokenSource is already disposed.
+[2026-10-22 20:52:17Z INFO JobDispatcher] Job request 890e3b4d-018a-5f06-8750-4b5c9758c2b8 processed succeed.
+[2026-10-22 20:52:17Z INFO Terminal] WRITE LINE: 2026-10-22 20:52:17Z: Running job: Test, publish image, and request rollout
+[2026-10-22 20:52:17Z INFO JobDispatcher] Start renew job request 0 for job 002da364-3476-56d0-acfa-06a96af4e35b.
+[2026-10-22 20:52:18Z INFO JobDispatcher] Successfully renew job 002da364-3476-56d0-acfa-06a96af4e35b, job is valid till 22-10-2026 21:02:17
+[2026-10-22 20:52:18Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper] Starting process:
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   File name: 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin\Runner.Worker.exe'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Arguments: 'spawnclient 624 2164'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Working directory: 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Require exit code zero: 'False'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Encoding web name:  ; code page: ''
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Force kill process on cancellation: 'True'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Redirected STDIN: 'False'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Persist current code page: 'False'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   Keep redirected STDIN open: 'False'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper]   High priority process: 'True'
+[2026-10-22 20:52:18Z INFO ProcessInvokerWrapper] Process started with process id 7144, waiting for process exit.
+[2026-10-22 20:52:18Z INFO JobDispatcher] Send job request message to worker for job 002da364-3476-56d0-acfa-06a96af4e35b.
+[2026-10-22 20:52:18Z INFO ProcessChannel] Sending message of length 28494, with hash '1bd2b51698ae135a43eae61a12b90bccbc40984f686cea3bfbff96a03fb1d97b'
+[2026-10-22 20:52:19Z INFO JobNotification] Entering JobStarted Notification
+[2026-10-22 20:52:19Z INFO JobNotification] Entering StartMonitor
+[2026-10-22 20:53:19Z INFO JobDispatcher] Successfully renew job 002da364-3476-56d0-acfa-06a96af4e35b, job is valid till 22-10-2026 21:03:18
+[2026-10-22 20:54:19Z INFO JobDispatcher] Successfully renew job 002da364-3476-56d0-acfa-06a96af4e35b, job is valid till 22-10-2026 21:04:18
+[2026-10-22 20:55:19Z INFO JobDispatcher] Job cancellation request 002da364-3476-56d0-acfa-06a96af4e35b received, cancellation timeout 5 minutes.
+[2026-10-22 20:55:19Z INFO JobDispatcher] Send job cancellation message to worker for job 002da364-3476-56d0-acfa-06a96af4e35b.
+[2026-10-22 20:55:19Z INFO ProcessChannel] Sending message of length 0, with hash 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+[2026-10-22 20:55:19Z INFO JobDispatcher] Job cancellation request 002da364-3476-56d0-acfa-06a96af4e35b received, cancellation timeout 5 minutes.
+[2026-10-22 20:55:19Z INFO JobDispatcher] Successfully renew job 002da364-3476-56d0-acfa-06a96af4e35b, job is valid till 22-10-2026 21:05:18
+[2026-10-22 20:55:20Z INFO JobDispatcher] Job cancellation request 002da364-3476-56d0-acfa-06a96af4e35b received, cancellation timeout 5 minutes.
+[2026-10-22 20:55:33Z INFO ProcessInvokerWrapper] STDOUT/STDERR stream read finished.
+[2026-10-22 20:55:33Z INFO ProcessInvokerWrapper] STDOUT/STDERR stream read finished.
+[2026-10-22 20:55:33Z INFO ProcessInvokerWrapper] Finished process 7144 with exit code 103, and elapsed time 00:03:14.6615598.
+[2026-10-22 20:55:33Z INFO JobDispatcher] finish job request for job 002da364-3476-56d0-acfa-06a96af4e35b with result: Canceled
+[2026-10-22 20:55:33Z INFO Terminal] WRITE LINE: 2026-10-22 20:55:33Z: Job Test, publish image, and request rollout completed with result: Canceled
+[2026-10-22 20:55:33Z INFO JobDispatcher] Stop renew job request for job 002da364-3476-56d0-acfa-06a96af4e35b.
+[2026-10-22 20:55:33Z INFO JobDispatcher] job renew has been cancelled, stop renew job 002da364-3476-56d0-acfa-06a96af4e35b.
+[2026-10-22 20:55:33Z INFO JobNotification] Entering JobCompleted Notification
+[2026-10-22 20:55:33Z INFO JobNotification] Entering EndMonitor
+[2026-10-22 20:55:33Z INFO BrokerMessageListener] Received job status event. JobState: Online
+[2026-10-22 20:55:33Z WARN GitHubActionsService] GET request to https://broker.actions.githubusercontent.com/message?sessionId=7d059dff-4551-4fb6-9ce5-52a422b4d33c&status=Busy&runnerVersion=2.337.0&os=Windows&architecture=X64&disableUpdate=false has been cancelled.
+[2026-10-22 20:55:33Z ERR  BrokerServer] Catch exception during request
+[2026-10-22 20:55:33Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpClient.HandleFailure(Exception e, Boolean telemetryStarted, HttpResponseMessage response, CancellationTokenSource cts, CancellationToken cancellationToken, CancellationTokenSource pendingRequestsCts)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync(HttpRequestMessage message, HttpCompletionOption completionOption, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpRequestMessage message, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpMethod method, IEnumerable`1 additionalHeaders, Uri requestUri, HttpContent content, IEnumerable`1 queryParameters, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at GitHub.Actions.RunService.WebApi.BrokerHttpClient.GetRunnerMessageAsync(Nullable`1 sessionId, String runnerVersion, Nullable`1 status, String os, String architecture, Nullable`1 disableUpdate, CancellationToken cancellationToken)
+   at GitHub.Runner.Common.BrokerServer.<>c__DisplayClass7_0.<<GetRunnerMessageAsync>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at GitHub.Runner.Common.RunnerService.RetryRequest[T](Func`1 func, CancellationToken cancellationToken, Int32 maxAttempts, Func`2 shouldRetry)
+[2026-10-22 20:55:33Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:55:33Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+[2026-10-22 20:55:33Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:55:33Z ERR  BrokerServer] System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+[2026-10-22 20:55:33Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:55:33Z ERR  BrokerServer] System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+[2026-10-22 20:55:33Z WARN BrokerServer] Back off 6.218 seconds before next retry. 4 attempt left.
+[2026-10-22 20:55:33Z INFO BrokerMessageListener] Get messages has been cancelled using local token source. Continue to get messages with new status.
+[2026-10-22 20:56:12Z INFO BrokerMessageListener] Acknowledging runner request 'fd7712c7-4528-5397-8c88-8e10fdfd2764'.
+[2026-10-22 20:56:13Z INFO ConfigurationStore] HasCredentials()
+[2026-10-22 20:56:13Z INFO ConfigurationStore] stored True
+[2026-10-22 20:56:13Z INFO CredentialManager] GetCredentialProvider
+[2026-10-22 20:56:13Z INFO CredentialManager] Creating type OAuth
+[2026-10-22 20:56:13Z INFO CredentialManager] Creating credential type: OAuth
+[2026-10-22 20:56:13Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:56:13Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:56:13Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:56:14Z INFO GitHubActionsService] AAD Correlation ID for this token request: Unknown
+[2026-10-22 20:56:15Z INFO JobDispatcher] Job request 0 for plan e0ece0fd-c564-4061-b510-2d095b9b91ed job fd7712c7-4528-5397-8c88-8e10fdfd2764 received.
+[2026-10-22 20:56:15Z INFO JobDispatcher] Pull OrchestrationId e0ece0fd-c564-4061-b510-2d095b9b91ed.test-build-deploy.__default from JWT claims
+[2026-10-22 20:56:15Z INFO BrokerMessageListener] Received job status event. JobState: Busy
+[2026-10-22 20:56:15Z INFO BrokerMessageListener] _getMessagesTokenSource is already disposed.
+[2026-10-22 20:56:15Z INFO JobDispatcher] Job request 002da364-3476-56d0-acfa-06a96af4e35b processed succeed.
+[2026-10-22 20:56:15Z INFO Terminal] WRITE LINE: 2026-10-22 20:56:15Z: Running job: Test, publish image, and request rollout
+[2026-10-22 20:56:15Z INFO JobDispatcher] Start renew job request 0 for job fd7712c7-4528-5397-8c88-8e10fdfd2764.
+[2026-10-22 20:56:16Z INFO JobDispatcher] Successfully renew job fd7712c7-4528-5397-8c88-8e10fdfd2764, job is valid till 22-10-2026 21:06:15
+[2026-10-22 20:56:16Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper] Starting process:
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   File name: 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin\Runner.Worker.exe'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Arguments: 'spawnclient 1596 1476'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Working directory: 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Require exit code zero: 'False'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Encoding web name:  ; code page: ''
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Force kill process on cancellation: 'True'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Redirected STDIN: 'False'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Persist current code page: 'False'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   Keep redirected STDIN open: 'False'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper]   High priority process: 'True'
+[2026-10-22 20:56:16Z INFO ProcessInvokerWrapper] Process started with process id 20128, waiting for process exit.
+[2026-10-22 20:56:16Z INFO JobDispatcher] Send job request message to worker for job fd7712c7-4528-5397-8c88-8e10fdfd2764.
+[2026-10-22 20:56:16Z INFO ProcessChannel] Sending message of length 28331, with hash 'd2a2eaee83f3c24b8e4908eab0f537b5ec5529208463ccafc533d5de15d021e5'
+[2026-10-22 20:56:16Z INFO JobNotification] Entering JobStarted Notification
+[2026-10-22 20:56:16Z INFO JobNotification] Entering StartMonitor
+[2026-10-22 20:56:45Z INFO ProcessInvokerWrapper] STDOUT/STDERR stream read finished.
+[2026-10-22 20:56:45Z INFO ProcessInvokerWrapper] STDOUT/STDERR stream read finished.
+[2026-10-22 20:56:45Z INFO ProcessInvokerWrapper] Finished process 20128 with exit code 102, and elapsed time 00:00:28.7691394.
+[2026-10-22 20:56:45Z INFO JobDispatcher] Worker finished for job fd7712c7-4528-5397-8c88-8e10fdfd2764. Code: 102
+[2026-10-22 20:56:45Z INFO JobDispatcher] finish job request for job fd7712c7-4528-5397-8c88-8e10fdfd2764 with result: Failed
+[2026-10-22 20:56:45Z INFO Terminal] WRITE LINE: 2026-10-22 20:56:45Z: Job Test, publish image, and request rollout completed with result: Failed
+[2026-10-22 20:56:45Z INFO JobDispatcher] Stop renew job request for job fd7712c7-4528-5397-8c88-8e10fdfd2764.
+[2026-10-22 20:56:45Z INFO JobDispatcher] job renew has been cancelled, stop renew job fd7712c7-4528-5397-8c88-8e10fdfd2764.
+[2026-10-22 20:56:45Z INFO JobNotification] Entering JobCompleted Notification
+[2026-10-22 20:56:45Z INFO JobNotification] Entering EndMonitor
+[2026-10-22 20:56:45Z INFO BrokerMessageListener] Received job status event. JobState: Online
+[2026-10-22 20:56:45Z WARN GitHubActionsService] GET request to https://broker.actions.githubusercontent.com/message?sessionId=7d059dff-4551-4fb6-9ce5-52a422b4d33c&status=Busy&runnerVersion=2.337.0&os=Windows&architecture=X64&disableUpdate=false has been cancelled.
+[2026-10-22 20:56:45Z ERR  BrokerServer] Catch exception during request
+[2026-10-22 20:56:45Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpClient.HandleFailure(Exception e, Boolean telemetryStarted, HttpResponseMessage response, CancellationTokenSource cts, CancellationToken cancellationToken, CancellationTokenSource pendingRequestsCts)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync(HttpRequestMessage message, HttpCompletionOption completionOption, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpRequestMessage message, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpMethod method, IEnumerable`1 additionalHeaders, Uri requestUri, HttpContent content, IEnumerable`1 queryParameters, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at GitHub.Actions.RunService.WebApi.BrokerHttpClient.GetRunnerMessageAsync(Nullable`1 sessionId, String runnerVersion, Nullable`1 status, String os, String architecture, Nullable`1 disableUpdate, CancellationToken cancellationToken)
+   at GitHub.Runner.Common.BrokerServer.<>c__DisplayClass7_0.<<GetRunnerMessageAsync>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at GitHub.Runner.Common.RunnerService.RetryRequest[T](Func`1 func, CancellationToken cancellationToken, Int32 maxAttempts, Func`2 shouldRetry)
+[2026-10-22 20:56:45Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:56:45Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+[2026-10-22 20:56:45Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:56:45Z ERR  BrokerServer] System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+[2026-10-22 20:56:45Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:56:45Z ERR  BrokerServer] System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+[2026-10-22 20:56:45Z WARN BrokerServer] Back off 9.976 seconds before next retry. 4 attempt left.
+[2026-10-22 20:56:45Z INFO BrokerMessageListener] Get messages has been cancelled using local token source. Continue to get messages with new status.
+[2026-10-22 20:56:54Z INFO BrokerMessageListener] Acknowledging runner request '2a6cd463-b840-5d1b-88a7-496719f32a5d'.
+[2026-10-22 20:56:55Z INFO ConfigurationStore] HasCredentials()
+[2026-10-22 20:56:55Z INFO ConfigurationStore] stored True
+[2026-10-22 20:56:55Z INFO CredentialManager] GetCredentialProvider
+[2026-10-22 20:56:55Z INFO CredentialManager] Creating type OAuth
+[2026-10-22 20:56:55Z INFO CredentialManager] Creating credential type: OAuth
+[2026-10-22 20:56:55Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:56:55Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:56:55Z INFO RSAEncryptedFileKeyManager] Loading RSA key parameters from file C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_rsaparams
+[2026-10-22 20:56:56Z INFO GitHubActionsService] AAD Correlation ID for this token request: Unknown
+[2026-10-22 20:56:58Z INFO JobDispatcher] Job request 0 for plan 684aee7f-9720-46f0-a48e-fa3c1e7911f7 job 2a6cd463-b840-5d1b-88a7-496719f32a5d received.
+[2026-10-22 20:56:58Z INFO JobDispatcher] Pull OrchestrationId 684aee7f-9720-46f0-a48e-fa3c1e7911f7.test-build-deploy.__default from JWT claims
+[2026-10-22 20:56:58Z INFO BrokerMessageListener] Received job status event. JobState: Busy
+[2026-10-22 20:56:58Z INFO BrokerMessageListener] _getMessagesTokenSource is already disposed.
+[2026-10-22 20:56:58Z INFO JobDispatcher] Job request fd7712c7-4528-5397-8c88-8e10fdfd2764 processed succeed.
+[2026-10-22 20:56:58Z INFO Terminal] WRITE LINE: 2026-10-22 20:56:58Z: Running job: Test, publish image, and request rollout
+[2026-10-22 20:56:58Z INFO JobDispatcher] Start renew job request 0 for job 2a6cd463-b840-5d1b-88a7-496719f32a5d.
+[2026-10-22 20:56:59Z INFO JobDispatcher] Successfully renew job 2a6cd463-b840-5d1b-88a7-496719f32a5d, job is valid till 22-10-2026 21:06:58
+[2026-10-22 20:56:59Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper] Starting process:
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   File name: 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin\Runner.Worker.exe'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Arguments: 'spawnclient 2280 1424'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Working directory: 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Require exit code zero: 'False'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Encoding web name:  ; code page: ''
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Force kill process on cancellation: 'True'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Redirected STDIN: 'False'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Persist current code page: 'False'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   Keep redirected STDIN open: 'False'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper]   High priority process: 'True'
+[2026-10-22 20:56:59Z INFO ProcessInvokerWrapper] Process started with process id 6880, waiting for process exit.
+[2026-10-22 20:56:59Z INFO JobDispatcher] Send job request message to worker for job 2a6cd463-b840-5d1b-88a7-496719f32a5d.
+[2026-10-22 20:56:59Z INFO ProcessChannel] Sending message of length 28331, with hash '0e83f9aacbfb60a5fdb390cec372676c62ab74217c68d19017bb6a5e8fe20570'
+[2026-10-22 20:56:59Z INFO JobNotification] Entering JobStarted Notification
+[2026-10-22 20:56:59Z INFO JobNotification] Entering StartMonitor
+[2026-10-22 20:57:59Z INFO JobDispatcher] Successfully renew job 2a6cd463-b840-5d1b-88a7-496719f32a5d, job is valid till 22-10-2026 21:07:58
+[2026-10-22 20:58:22Z INFO ProcessInvokerWrapper] STDOUT/STDERR stream read finished.
+[2026-10-22 20:58:22Z INFO ProcessInvokerWrapper] STDOUT/STDERR stream read finished.
+[2026-10-22 20:58:22Z INFO ProcessInvokerWrapper] Finished process 6880 with exit code 102, and elapsed time 00:01:22.6246986.
+[2026-10-22 20:58:22Z INFO JobDispatcher] Worker finished for job 2a6cd463-b840-5d1b-88a7-496719f32a5d. Code: 102
+[2026-10-22 20:58:22Z INFO JobDispatcher] finish job request for job 2a6cd463-b840-5d1b-88a7-496719f32a5d with result: Failed
+[2026-10-22 20:58:22Z INFO Terminal] WRITE LINE: 2026-10-22 20:58:22Z: Job Test, publish image, and request rollout completed with result: Failed
+[2026-10-22 20:58:22Z INFO JobDispatcher] Stop renew job request for job 2a6cd463-b840-5d1b-88a7-496719f32a5d.
+[2026-10-22 20:58:22Z INFO JobDispatcher] job renew has been cancelled, stop renew job 2a6cd463-b840-5d1b-88a7-496719f32a5d.
+[2026-10-22 20:58:22Z INFO JobNotification] Entering JobCompleted Notification
+[2026-10-22 20:58:22Z INFO JobNotification] Entering EndMonitor
+[2026-10-22 20:58:22Z INFO BrokerMessageListener] Received job status event. JobState: Online
+[2026-10-22 20:58:22Z WARN GitHubActionsService] GET request to https://broker.actions.githubusercontent.com/message?sessionId=7d059dff-4551-4fb6-9ce5-52a422b4d33c&status=Busy&runnerVersion=2.337.0&os=Windows&architecture=X64&disableUpdate=false has been cancelled.
+[2026-10-22 20:58:22Z ERR  BrokerServer] Catch exception during request
+[2026-10-22 20:58:22Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpClient.HandleFailure(Exception e, Boolean telemetryStarted, HttpResponseMessage response, CancellationTokenSource cts, CancellationToken cancellationToken, CancellationTokenSource pendingRequestsCts)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync(HttpRequestMessage message, HttpCompletionOption completionOption, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpRequestMessage message, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpMethod method, IEnumerable`1 additionalHeaders, Uri requestUri, HttpContent content, IEnumerable`1 queryParameters, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at GitHub.Actions.RunService.WebApi.BrokerHttpClient.GetRunnerMessageAsync(Nullable`1 sessionId, String runnerVersion, Nullable`1 status, String os, String architecture, Nullable`1 disableUpdate, CancellationToken cancellationToken)
+   at GitHub.Runner.Common.BrokerServer.<>c__DisplayClass7_0.<<GetRunnerMessageAsync>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at GitHub.Runner.Common.RunnerService.RetryRequest[T](Func`1 func, CancellationToken cancellationToken, Int32 maxAttempts, Func`2 shouldRetry)
+[2026-10-22 20:58:22Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:58:22Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+[2026-10-22 20:58:22Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:58:22Z ERR  BrokerServer] System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+[2026-10-22 20:58:22Z ERR  BrokerServer] #####################################################
+[2026-10-22 20:58:22Z ERR  BrokerServer] System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+[2026-10-22 20:58:22Z WARN BrokerServer] Back off 5.184 seconds before next retry. 4 attempt left.
+[2026-10-22 20:58:22Z INFO BrokerMessageListener] Get messages has been cancelled using local token source. Continue to get messages with new status.
+[2026-10-22 21:03:53Z INFO Terminal] WRITE LINE: Exiting...
+[2026-10-22 21:03:53Z INFO ConfigurationStore] IsServiceConfigured()
+[2026-10-22 21:03:53Z INFO ConfigurationStore] IsServiceConfigured: False
+[2026-10-22 21:03:53Z INFO HostContext] Runner will be shutdown for UserCancelled
+[2026-10-22 21:03:53Z WARN GitHubActionsService] GET request to https://broker.actions.githubusercontent.com/message?sessionId=7d059dff-4551-4fb6-9ce5-52a422b4d33c&status=Online&runnerVersion=2.337.0&os=Windows&architecture=X64&disableUpdate=false has been cancelled.
+[2026-10-22 21:03:53Z ERR  BrokerServer] Catch exception during request
+[2026-10-22 21:03:53Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpClient.HandleFailure(Exception e, Boolean telemetryStarted, HttpResponseMessage response, CancellationTokenSource cts, CancellationToken cancellationToken, CancellationTokenSource pendingRequestsCts)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync(HttpRequestMessage message, HttpCompletionOption completionOption, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpRequestMessage message, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at Sdk.WebApi.WebApi.RawHttpClientBase.SendAsync[T](HttpMethod method, IEnumerable`1 additionalHeaders, Uri requestUri, HttpContent content, IEnumerable`1 queryParameters, Boolean readErrorBody, Object userState, CancellationToken cancellationToken)
+   at GitHub.Actions.RunService.WebApi.BrokerHttpClient.GetRunnerMessageAsync(Nullable`1 sessionId, String runnerVersion, Nullable`1 status, String os, String architecture, Nullable`1 disableUpdate, CancellationToken cancellationToken)
+   at GitHub.Runner.Common.BrokerServer.<>c__DisplayClass7_0.<<GetRunnerMessageAsync>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at GitHub.Runner.Common.RunnerService.RetryRequest[T](Func`1 func, CancellationToken cancellationToken, Int32 maxAttempts, Func`2 shouldRetry)
+[2026-10-22 21:03:53Z ERR  BrokerServer] #####################################################
+[2026-10-22 21:03:53Z ERR  BrokerServer] System.Threading.Tasks.TaskCanceledException: The operation was canceled.
+ ---> System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   --- End of inner exception stack trace ---
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithNtAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean isProxyAuth, HttpConnection connection, HttpConnectionPool connectionPool, CancellationToken cancellationToken)
+   at System.Net.Http.HttpConnectionPool.SendWithVersionDetectionAndRetryAsync(HttpRequestMessage request, Boolean async, Boolean doRequestAuth, CancellationToken cancellationToken)
+   at System.Net.Http.AuthenticationHelper.SendWithAuthAsync(HttpRequestMessage request, Uri authUri, Boolean async, ICredentials credentials, Boolean preAuthenticate, Boolean isProxyAuth, Boolean doRequestAuth, HttpConnectionPool pool, CancellationToken cancellationToken)
+   at System.Net.Http.RedirectHandler.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+   at GitHub.Services.Common.RawHttpMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at GitHub.Services.Common.VssHttpRetryMessageHandler.SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+   at System.Net.Http.HttpClient.<SendAsync>g__Core|83_0(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationTokenSource cts, Boolean disposeCts, CancellationTokenSource pendingRequestsCts, CancellationToken originalCancellationToken)
+[2026-10-22 21:03:53Z ERR  BrokerServer] #####################################################
+[2026-10-22 21:03:53Z ERR  BrokerServer] System.IO.IOException: Unable to read data from the transport connection: The I/O operation has been aborted because of either a thread exit or an application request..
+ ---> System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+   --- End of inner exception stack trace ---
+   at System.Net.Sockets.Socket.AwaitableSocketAsyncEventArgs.System.Threading.Tasks.Sources.IValueTaskSource<System.Int32>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.EnsureFullTlsFrameAsync[TIOAdapter](CancellationToken cancellationToken, Int32 estimatedSize)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Security.SslStream.ReadAsyncInternal[TIOAdapter](Memory`1 buffer, CancellationToken cancellationToken)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at System.Net.Http.HttpConnection.SendAsync(HttpRequestMessage request, Boolean async, CancellationToken cancellationToken)
+[2026-10-22 21:03:53Z ERR  BrokerServer] #####################################################
+[2026-10-22 21:03:53Z ERR  BrokerServer] System.Net.Sockets.SocketException (995): The I/O operation has been aborted because of either a thread exit or an application request.
+[2026-10-22 21:03:53Z WARN BrokerServer] Back off 12.61 seconds before next retry. 4 attempt left.
+[2026-10-22 21:03:53Z INFO BrokerMessageListener] Get next message has been cancelled.
+[2026-10-22 21:03:53Z INFO JobDispatcher] Shutting down JobDispatcher. Make sure all WorkerDispatcher has finished.
+[2026-10-22 21:03:53Z INFO JobDispatcher] Ensure WorkerDispatcher for job 2a6cd463-b840-5d1b-88a7-496719f32a5d run to finish, cancel any running job.
+[2026-10-22 21:03:53Z INFO JobDispatcher] Job request 2a6cd463-b840-5d1b-88a7-496719f32a5d processed succeed.
+[2026-10-22 21:03:53Z INFO Runner] Deleting Runner Session...
+[2026-10-22 21:03:54Z INFO Listener] Runner execution been cancelled.

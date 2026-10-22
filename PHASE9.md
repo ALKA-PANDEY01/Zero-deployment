@@ -23,9 +23,9 @@ the same PC as ZeroDown. This means the controller stays local and there is no
 public address to create. The value of `ZERODOWN_URL` will be
 `http://localhost:9000`.
 
-1. Make sure Docker Desktop is running with Linux containers enabled. Install
-   Git for Windows (which provides Bash) and Python 3.12 if they are not
-   already installed.
+1. Make sure Docker Desktop is running with Linux containers enabled and
+   install Git for Windows (which provides Bash). The workflow selects Python
+   3.12 with `actions/setup-python`; it does not use a repository `.venv`.
 2. In the GitHub repository, go to **Settings → Actions → Runners → New
    self-hosted runner**.
 3. Select **Windows** and **x64**. Follow the setup commands GitHub displays

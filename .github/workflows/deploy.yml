@@ -22,14 +22,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Local Python
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify selected Python
         run: python --version
 
       - name: Install dependencies
         run: |
-          python -m pip install -r app/requirements.txt
-          python -m pip install -r controller/requirements.txt
-          python -m pip install -r tests/requirements.txt
+          & '${{ steps.python.outputs.python-path }}' -m pip install --upgrade pip
+          & '${{ steps.python.outputs.python-path }}' -m pip install -r app/requirements.txt
+          & '${{ steps.python.outputs.python-path }}' -m pip install -r controller/requirements.txt
+          & '${{ steps.python.outputs.python-path }}' -m pip install -r tests/requirements.txt
 
       - name: Validate Compose configuration
         run: docker compose config --quiet
@@ -83,7 +90,7 @@ jobs:
         env:
           E2E_CONTROLLER_URL: http://localhost:9000
           E2E_GATEWAY_URL: http://localhost:8080
-        run: python -m pytest -q tests
+        run: '& ''${{ steps.python.outputs.python-path }}'' -m pytest -q tests'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
