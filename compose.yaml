@@ -52,13 +52,12 @@ services:
       V1_URL: http://app_v1:8000
       V2_URL: http://app_v2:8000
       GATEWAY_URL: http://proxy
-      OBSERVATION_SECONDS: 15
-      CANARY_STEP_SECONDS: 3
-      MAX_CANARY_ERROR_RATE: "0.10"
+      ZERODOWN_CONFIG: /controller/config/zerodown.yaml
       RISK_TELEMETRY_PATH: /data/risk-telemetry.jsonl
 
     volumes:
       - ./proxy/nginx.conf:/shared/nginx.conf
+      - ./config/zerodown.yaml:/controller/config/zerodown.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/data
 

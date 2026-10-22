@@ -12,6 +12,15 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+if __package__:
+    from .zerodown.api import router as architecture_api
+    from .zerodown.config import load_config
+    from .zerodown.state import DeploymentPhase, DeploymentStateStore
+else:
+    from zerodown.api import router as architecture_api
+    from zerodown.config import load_config
+    from zerodown.state import DeploymentPhase, DeploymentStateStore
+
 try:
     from .risk_model import predict_deployment_risk
 except ImportError:
@@ -25,6 +34,9 @@ app = FastAPI(
     title="Zero-Downtime Deployment Controller",
     version="1.0.0",
 )
+app.state.zerodown_config = load_config()
+app.state.deployment_state_store = DeploymentStateStore()
+app.include_router(architecture_api)
 
 
 # --------------------------------------------------
@@ -56,21 +68,6 @@ GATEWAY_URL = os.getenv(
     "http://proxy"
 )
 
-DEFAULT_OBSERVATION_SECONDS = int(
-    os.getenv("OBSERVATION_SECONDS", "15")
-)
-
-CANARY_STEP_SECONDS = float(
-    os.getenv("CANARY_STEP_SECONDS", "3")
-)
-
-MAX_CANARY_ERROR_RATE = float(
-    os.getenv("MAX_CANARY_ERROR_RATE", "0.10")
-)
-
-ML_RISK_ROLLBACK_THRESHOLD = float(
-    os.getenv("ML_RISK_ROLLBACK_THRESHOLD", "0.65")
-)
 V2_CONTAINER = os.getenv("V2_CONTAINER", "zerodown-app-v2")
 RISK_TELEMETRY_PATH = os.getenv("RISK_TELEMETRY_PATH")
 
@@ -99,7 +96,11 @@ class DeployRequest(BaseModel):
 # LOGGING
 # --------------------------------------------------
 
-def record(message: str, status: str | None = None):
+def record(
+    message: str,
+    status: str | None = None,
+    phase: DeploymentPhase | None = None,
+):
 
     timestamp = datetime.now(timezone.utc).isoformat()
     deployment_state["steps"].append(
@@ -113,6 +114,8 @@ def record(message: str, status: str | None = None):
 
     if status:
         deployment_state["status"] = status
+    if phase is not None:
+        app.state.deployment_state_store.set_phase(phase, message)
 
 
 # --------------------------------------------------
@@ -179,7 +182,7 @@ http {{
     with open(CONFIG, "w") as file:
         file.write(nginx_config)
 
-    docker_client = docker.from_env()
+    docker_client = docker.from_env(timeout=3)
 
     proxy = docker_client.containers.get(
         PROXY_CONTAINER
@@ -280,11 +283,8 @@ async def check_endpoint(
 
 async def validate_v2():
 
-    tests = [
-        "/health",
-        "/ready",
-        "/api/data",
-    ]
+    config = app.state.zerodown_config
+    tests = [config.health.endpoint, *config.health.smoke_endpoints]
 
     for path in tests:
 
@@ -320,7 +320,7 @@ async def set_v2_demo_failure(enabled: bool):
 def get_v2_resource_metrics():
     """Read current V2 CPU and memory usage from Docker stats."""
     try:
-        container = docker.from_env().containers.get(V2_CONTAINER)
+        container = docker.from_env(timeout=3).containers.get(V2_CONTAINER)
         stats = container.stats(stream=False)
         cpu_stats = stats.get("cpu_stats", {})
         previous_cpu = stats.get("precpu_stats", {})
@@ -391,6 +391,46 @@ async def score_canary_metrics(metrics):
     return prediction
 
 
+def safety_limit_failure(metrics, prediction):
+    limits = app.state.zerodown_config.limits
+    error_rate_percent = metrics.get("error_rate", 1.0) * 100
+    if error_rate_percent > limits.max_error_rate:
+        return (
+            f"Error rate {error_rate_percent:.1f}% exceeded "
+            f"the {limits.max_error_rate:.1f}% limit"
+        )
+
+    latency_ms = metrics.get("p95_latency_ms")
+    if latency_ms is not None and latency_ms > limits.max_latency_ms:
+        return (
+            f"p95 latency {latency_ms:.1f}ms exceeded "
+            f"the {limits.max_latency_ms:.1f}ms limit"
+        )
+
+    cpu_percent = metrics.get("cpu_percent")
+    if cpu_percent is not None and cpu_percent > limits.max_cpu_percent:
+        return (
+            f"CPU usage {cpu_percent:.1f}% exceeded "
+            f"the {limits.max_cpu_percent:.1f}% limit"
+        )
+
+    memory_percent = metrics.get("memory_percent")
+    if memory_percent is not None and memory_percent > limits.max_memory_percent:
+        return (
+            f"Memory usage {memory_percent:.1f}% exceeded "
+            f"the {limits.max_memory_percent:.1f}% limit"
+        )
+
+    risk_percent = prediction["probability"] * 100
+    if risk_percent >= limits.max_risk_percent:
+        return (
+            f"ML risk {prediction['risk_percent']}% "
+            f"{prediction['risk_level']} exceeded the "
+            f"{limits.max_risk_percent:.1f}% limit"
+        )
+    return None
+
+
 async def monitor_canary(
     v2_percent: int,
     observation_seconds: float,
@@ -425,7 +465,7 @@ async def monitor_canary(
             health_started = time.perf_counter()
             healthy, health_message = await check_endpoint(
                 V2_URL,
-                "/health",
+                app.state.zerodown_config.health.endpoint,
                 "v2",
             )
             latencies_ms.append((time.perf_counter() - health_started) * 1000)
@@ -491,19 +531,11 @@ async def monitor_canary(
     )
     record(f"Canary metrics: {message}")
 
-    if prediction["probability"] >= ML_RISK_ROLLBACK_THRESHOLD:
-        return False, (
-            f"ML risk {prediction['risk_percent']}% "
-            f"{prediction['risk_level']} exceeded rollback threshold"
-        )
     if not requests:
         return False, "Canary monitor received no gateway responses"
-    if error_rate > MAX_CANARY_ERROR_RATE:
-        return (
-            False,
-            f"Gateway error rate {error_rate:.1%} exceeded "
-            f"the {MAX_CANARY_ERROR_RATE:.1%} limit",
-        )
+    limit_failure = safety_limit_failure(metrics, prediction)
+    if limit_failure:
+        return False, limit_failure
     if simulate_failure and not failure_injected:
         return False, "Demo failed to inject the V2 health failure"
 
@@ -519,6 +551,7 @@ def rollback():
     record(
         "Starting automatic rollback",
         "rolling_back",
+        DeploymentPhase.ROLLBACK,
     )
 
     set_traffic(
@@ -562,6 +595,7 @@ async def deployment_job(
             record(
                 "Deployment started",
                 "validating",
+                DeploymentPhase.HEALTH_CHECK,
             )
 
             # --------------------------------------
@@ -591,18 +625,25 @@ async def deployment_job(
             # GRADUAL CANARY ROLLOUT
             # --------------------------------------
 
-            for v2_percent in (10, 25, 50, 100):
+            for v2_percent in app.state.zerodown_config.rollout.stages:
+                phase = {
+                    10: DeploymentPhase.CANARY_10,
+                    25: DeploymentPhase.CANARY_25,
+                    50: DeploymentPhase.CANARY_50,
+                    100: DeploymentPhase.FULL_ROLLOUT,
+                }[v2_percent]
                 set_traffic(
                     100 - v2_percent,
                     v2_percent,
                 )
                 record(
-                    f"Canary stage started: V2={v2_percent}%"
+                    f"Canary stage started: V2={v2_percent}%",
+                    phase=phase,
                 )
 
                 success, message = await monitor_canary(
                     v2_percent,
-                    CANARY_STEP_SECONDS,
+                    app.state.zerodown_config.rollout.stage_seconds,
                 )
                 if not success:
                     record(f"Canary stage failed: {message}")
@@ -638,6 +679,7 @@ async def deployment_job(
             record(
                 "V2 promoted to 100% traffic",
                 "succeeded",
+                DeploymentPhase.SUCCESS,
             )
 
         except Exception as error:
@@ -656,6 +698,7 @@ async def deployment_job(
                     "CRITICAL: rollback failed: "
                     f"{rollback_error}",
                     "failed",
+                    DeploymentPhase.FAILED,
                 )
 
         finally:
@@ -739,7 +782,7 @@ async def start_deployment(
     observation_seconds = (
         request.observation_seconds
         if request.observation_seconds is not None
-        else DEFAULT_OBSERVATION_SECONDS
+        else app.state.zerodown_config.rollout.observation_seconds
     )
 
     if not (
@@ -787,12 +830,12 @@ async def start_failure_demo(
         request.observation_seconds
         if request is not None
         and request.observation_seconds is not None
-        else DEFAULT_OBSERVATION_SECONDS
+        else app.state.zerodown_config.rollout.observation_seconds
     )
-    if not 3 <= observation_seconds <= 300:
+    if not 1 <= observation_seconds <= 300:
         raise HTTPException(
             status_code=400,
-            detail="observation_seconds must be between 3 and 300 for the failure demo",
+            detail="observation_seconds must be between 1 and 300",
         )
 
     background_tasks.add_task(

@@ -1,0 +1,27 @@
+app:
+  name: demo-app
+  build_context: ./app
+  dockerfile: dockerfile
+  port: 8000
+
+health:
+  endpoint: /health
+  smoke_endpoints:
+    - /ready
+    - /api/data
+
+rollout:
+  stages:
+    - 10
+    - 25
+    - 50
+    - 100
+  stage_seconds: 3
+  observation_seconds: 15
+
+limits:
+  max_error_rate: 5
+  max_latency_ms: 1000
+  max_cpu_percent: 90
+  max_memory_percent: 90
+  max_risk_percent: 65

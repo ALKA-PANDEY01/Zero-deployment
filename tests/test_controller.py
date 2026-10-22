@@ -50,6 +50,10 @@ def test_v2_is_checked_before_canary_traffic(monkeypatch):
         ("traffic", 0, 100),
     ]
     assert controller.deployment_state["status"] == "succeeded"
+    assert (
+        controller.app.state.deployment_state_store.snapshot().phase
+        is controller.DeploymentPhase.SUCCESS
+    )
 
 
 def test_unhealthy_v2_triggers_rollback(monkeypatch):
@@ -69,6 +73,10 @@ def test_unhealthy_v2_triggers_rollback(monkeypatch):
 
     assert traffic_changes == [(100, 0)]
     assert controller.deployment_state["status"] == "rolled_back"
+    assert (
+        controller.app.state.deployment_state_store.snapshot().phase
+        is controller.DeploymentPhase.ROLLBACK
+    )
     messages = [
         step["message"]
         for step in controller.deployment_state["steps"]
@@ -104,6 +112,43 @@ def test_v2_health_failure_during_canary_rolls_back(monkeypatch):
     ]
     assert "Canary stage failed: V2 /health returned HTTP 500" in messages
     assert "Rollback complete: V1 receives 100% traffic" in messages
+
+
+def test_set_traffic_uses_bounded_docker_timeouts(monkeypatch, tmp_path):
+    config_path = tmp_path / "nginx.conf"
+    monkeypatch.setattr(controller, "CONFIG", str(config_path))
+    monkeypatch.setattr(controller, "PROXY_CONTAINER", "proxy")
+
+    client_timeouts = []
+    calls = []
+
+    class FakeResult:
+        exit_code = 0
+        output = b"ok"
+
+    class FakeProxy:
+        def exec_run(self, command):
+            calls.append(command)
+            return FakeResult()
+
+    class FakeContainers:
+        def get(self, name):
+            return FakeProxy()
+
+    class FakeClient:
+        def __init__(self):
+            self.containers = FakeContainers()
+
+    def fake_from_env(timeout=None):
+        client_timeouts.append(timeout)
+        return FakeClient()
+
+    monkeypatch.setattr(controller.docker, "from_env", fake_from_env)
+
+    controller.set_traffic(50, 50)
+
+    assert client_timeouts == [3]
+    assert calls == ["nginx -t", "nginx -s reload"]
 
 
 def test_risk_model_distinguishes_healthy_and_unhealthy_metrics():
@@ -180,5 +225,5 @@ def test_high_resource_risk_stops_canary(monkeypatch):
     success, message = asyncio.run(controller.monitor_canary(10, 0.001))
 
     assert not success
-    assert "ML risk" in message
-    assert "HIGH" in message
+    assert "CPU usage" in message
+    assert "90.0% limit" in message

@@ -87,6 +87,11 @@ def test_proxy_serves_traffic_through_canary_deployment():
 
         assert final_status is not None, "Deployment did not finish in time"
         assert final_status["status"] == "succeeded"
+        phase = httpx.get(
+            f"{controller_url}/api/v1/deployment/state",
+            timeout=timeout,
+        ).json()
+        assert phase["phase"] == "SUCCESS"
         assert probe_results, "No proxy samples were captured during deployment"
         assert all(result[0] == 200 for result in probe_results), probe_results
 

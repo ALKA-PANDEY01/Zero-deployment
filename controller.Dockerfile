@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir --timeout=120 --retries=5 -r requirements.txt
 COPY controller/main.py ./main.py
 COPY controller/risk_model.py ./risk_model.py
 COPY controller/dashboard.html ./dashboard.html
+COPY controller/zerodown ./zerodown
+COPY config ./config
 
 EXPOSE 9000
 

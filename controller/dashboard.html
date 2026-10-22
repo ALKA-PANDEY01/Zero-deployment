@@ -59,7 +59,7 @@
     </header>
 
     <section class="grid" aria-label="Deployment overview">
-      <article class="card"><div class="label">Deployment</div><div class="value" id="deployment-state">Loading</div><div class="detail" id="deployment-detail">Reading controller status</div></article>
+      <article class="card"><div class="label">Deployment</div><div class="value" id="deployment-state">Loading</div><div class="detail" id="deployment-detail">Reading controller status</div><div class="detail" id="controller-phase">Controller phase: loading</div></article>
       <article class="card"><div class="label">Proxy health</div><div class="value" id="proxy-state">Checking</div><div class="detail" id="proxy-detail">Waiting for proxy response</div></article>
       <article class="card"><div class="label">V2 traffic</div><div class="value" id="traffic-value">0%</div><div class="detail" id="traffic-detail">V1 receives traffic</div></article>
       <article class="card"><div class="label">ML deployment risk</div><div class="value" id="risk-value">Not scored</div><div class="detail" id="risk-detail">Prototype logistic model - sample training cases</div><div class="detail" id="metric-summary">Signals: CPU, memory, latency, errors, success, health</div></article>
@@ -177,13 +177,17 @@
 
   async function refresh() {
     try {
-      const [statusResponse, proxyResponse] = await Promise.all([
+      const [statusResponse, proxyResponse, phaseResponse] = await Promise.all([
         fetch('/status', { cache: 'no-store' }),
         fetch('/dashboard/proxy-health', { cache: 'no-store' }),
+        fetch('/api/v1/deployment/state', { cache: 'no-store' }),
       ]);
       if (!statusResponse.ok) throw new Error('Controller status unavailable');
+      if (!phaseResponse.ok) throw new Error('Controller phase unavailable');
       renderStatus(await statusResponse.json());
       const proxy = await proxyResponse.json();
+      const phase = await phaseResponse.json();
+      byId('controller-phase').textContent = `Controller phase: ${phase.phase}`;
       byId('proxy-state').textContent = proxy.healthy ? 'Healthy' : 'Unavailable';
       byId('proxy-state').style.color = proxy.healthy ? 'var(--green)' : 'var(--red)';
       byId('proxy-detail').textContent = proxy.healthy ? `Serving ${proxy.version || 'traffic'}` : (proxy.error || 'Health check failed');
