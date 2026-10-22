@@ -37,6 +37,16 @@ def test_ready():
     assert response.json()["status"] == "ready"
 
 
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_version_endpoint_returns_running_version(monkeypatch, version):
+    monkeypatch.setattr(main, "APP_VERSION", version)
+
+    response = client.get("/version")
+
+    assert response.status_code == 200
+    assert response.json() == {"version": version}
+
+
 def test_api_data():
     response = client.get("/api/data")
 

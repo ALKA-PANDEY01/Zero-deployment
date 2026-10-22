@@ -96,6 +96,25 @@ def _endpoint(value: Any, name: str) -> str:
     return endpoint
 
 
+def validate_rollout_stages(stages: Any) -> tuple[int, ...]:
+    if (
+        not isinstance(stages, (list, tuple))
+        or not stages
+        or any(
+            isinstance(stage, bool)
+            or not isinstance(stage, int)
+            or not 1 <= stage <= 100
+            for stage in stages
+        )
+        or stages[-1] != 100
+        or any(left >= right for left, right in zip(stages, stages[1:]))
+    ):
+        raise ValueError(
+            "rollout.stages must be increasing integer percentages ending in 100"
+        )
+    return tuple(stages)
+
+
 def parse_config(raw: Any) -> ZeroDownConfig:
     root = _mapping(raw, "config", {"app", "health"}, {"rollout", "limits"})
 
@@ -129,22 +148,9 @@ def parse_config(raw: Any) -> ZeroDownConfig:
         set(),
         {"stages", "stage_seconds", "observation_seconds"},
     )
-    stages = rollout_data.get("stages", list(DEFAULT_STAGES))
-    if (
-        not isinstance(stages, list)
-        or not stages
-        or any(
-            isinstance(stage, bool)
-            or not isinstance(stage, int)
-            or not 1 <= stage <= 100
-            for stage in stages
-        )
-        or stages[-1] != 100
-        or any(left >= right for left, right in zip(stages, stages[1:]))
-    ):
-        raise ValueError(
-            "rollout.stages must be increasing integer percentages ending in 100"
-        )
+    stages = validate_rollout_stages(
+        rollout_data.get("stages", list(DEFAULT_STAGES))
+    )
     stage_seconds = _number(
         rollout_data.get("stage_seconds", 3),
         "rollout.stage_seconds",
@@ -222,7 +228,7 @@ def parse_config(raw: Any) -> ZeroDownConfig:
             smoke_endpoints=parsed_smoke_endpoints,
         ),
         rollout=RolloutConfig(
-            stages=tuple(stages),
+            stages=stages,
             stage_seconds=stage_seconds,
             observation_seconds=observation_seconds,
         ),

@@ -43,6 +43,11 @@ def health():
     }
 
 
+@app.get("/version")
+def version():
+    return {"version": APP_VERSION}
+
+
 @app.get("/ready")
 def readiness():
     return {

@@ -49,13 +49,14 @@ services:
     environment:
       CONFIG: /shared/nginx.conf
       PROXY_CONTAINER: zerodown-proxy
-      V1_URL: http://app_v1:8000
-      V2_URL: http://app_v2:8000
       GATEWAY_URL: http://proxy
       ZERODOWN_CONFIG: /controller/config/zerodown.yaml
+      ZERODOWN_PROJECT_ROOT: /workspace
+      ZERODOWN_DOCKER_NETWORK: zerodown
       RISK_TELEMETRY_PATH: /data/risk-telemetry.jsonl
 
     volumes:
+      - .:/workspace:ro
       - ./proxy/nginx.conf:/shared/nginx.conf
       - ./config/zerodown.yaml:/controller/config/zerodown.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -73,4 +74,5 @@ services:
 
 networks:
   deployment:
+    name: zerodown
     driver: bridge

@@ -8,17 +8,23 @@ from pathlib import Path
 
 import docker
 import httpx
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 if __package__:
     from .zerodown.api import router as architecture_api
-    from .zerodown.config import load_config
+    from .zerodown.config import load_config, validate_rollout_stages
+    from .zerodown.docker_manager import DockerManager
+    from .zerodown.health_checks import ValidationResult, VersionHealthChecker
+    from .zerodown.router import NginxTrafficRouter, traffic_api
     from .zerodown.state import DeploymentPhase, DeploymentStateStore
 else:
     from zerodown.api import router as architecture_api
-    from zerodown.config import load_config
+    from zerodown.config import load_config, validate_rollout_stages
+    from zerodown.docker_manager import DockerManager
+    from zerodown.health_checks import ValidationResult, VersionHealthChecker
+    from zerodown.router import NginxTrafficRouter, traffic_api
     from zerodown.state import DeploymentPhase, DeploymentStateStore
 
 try:
@@ -36,6 +42,15 @@ app = FastAPI(
 )
 app.state.zerodown_config = load_config()
 app.state.deployment_state_store = DeploymentStateStore()
+app.state.docker_manager = DockerManager(
+    project_root=Path(
+        os.getenv(
+            "ZERODOWN_PROJECT_ROOT",
+            str(Path(__file__).resolve().parents[1]),
+        )
+    ),
+    network=os.getenv("ZERODOWN_DOCKER_NETWORK", "zerodown"),
+)
 app.include_router(architecture_api)
 
 
@@ -53,15 +68,8 @@ PROXY_CONTAINER = os.getenv(
     "zerodown-proxy"
 )
 
-V1_URL = os.getenv(
-    "V1_URL",
-    "http://app_v1:8000"
-)
-
-V2_URL = os.getenv(
-    "V2_URL",
-    "http://app_v2:8000"
-)
+V1_URL = os.getenv("V1_URL")
+V2_URL = os.getenv("V2_URL")
 
 GATEWAY_URL = os.getenv(
     "GATEWAY_URL",
@@ -71,6 +79,21 @@ GATEWAY_URL = os.getenv(
 V2_CONTAINER = os.getenv("V2_CONTAINER", "zerodown-app-v2")
 RISK_TELEMETRY_PATH = os.getenv("RISK_TELEMETRY_PATH")
 
+app.state.traffic_router = NginxTrafficRouter(
+    config_path=Path(CONFIG),
+    proxy_container=PROXY_CONTAINER,
+    v1_target=os.getenv("ZERODOWN_V1_TARGET", "app_v1"),
+    v2_target=os.getenv("ZERODOWN_V2_TARGET", "app_v2"),
+    v1_container=os.getenv("ZERODOWN_V1_CONTAINER", "zerodown-app-v1"),
+    v2_container=os.getenv("ZERODOWN_V2_CONTAINER", "zerodown-app-v2"),
+    app_port=app.state.zerodown_config.app.port,
+)
+app.state.version_health_checker = VersionHealthChecker(
+    docker_manager=app.state.docker_manager,
+    config=app.state.zerodown_config,
+)
+app.include_router(traffic_api)
+
 
 # --------------------------------------------------
 # DEPLOYMENT STATE
@@ -78,18 +101,49 @@ RISK_TELEMETRY_PATH = os.getenv("RISK_TELEMETRY_PATH")
 
 deployment_state = {
     "status": "idle",
+    "phase": DeploymentPhase.IDLE.value,
     "message": "Ready",
     "steps": [],
     "started_at": None,
     "finished_at": None,
+    "version": "v2",
+    "traffic": 0,
+    "health": "unknown",
+    "progress": 0,
+    "metrics": {},
+    "rollback": None,
+    "candidate_logs": None,
+    "active": False,
+    "container_name": None,
 }
 
 
 deployment_lock = asyncio.Lock()
+app.state.deployment_task = None
 
 
 class DeployRequest(BaseModel):
     observation_seconds: int | None = None
+
+
+def app_url(version: str) -> str:
+    configured_url = {"v1": V1_URL, "v2": V2_URL}[version]
+    if configured_url:
+        return configured_url
+    port = app.state.zerodown_config.app.port
+    return f"http://app_{version}:{port}"
+
+
+async def validate_version(
+    version: str,
+    container_name: str | None = None,
+    base_url: str | None = None,
+) -> ValidationResult:
+    return await app.state.version_health_checker.validate_version(
+        version,
+        container_name=container_name,
+        base_url=base_url,
+    )
 
 
 # --------------------------------------------------
@@ -109,12 +163,14 @@ def record(
             "message": message,
         }
     )
+    deployment_state["message"] = message
 
     print(f"[{timestamp}] {message}", flush=True)
 
     if status:
         deployment_state["status"] = status
     if phase is not None:
+        deployment_state["phase"] = phase.value
         app.state.deployment_state_store.set_phase(phase, message)
 
 
@@ -123,104 +179,72 @@ def record(
 # --------------------------------------------------
 
 def set_traffic(v1: int, v2: int):
-
-    if v1 + v2 != 100:
-        raise ValueError(
-            "Traffic percentages must total 100"
-        )
-
-    upstream_servers = []
-    if v1:
-        upstream_servers.append(
-            f"        server app_v1:8000 weight={v1} "
-            "max_fails=2 fail_timeout=5s;"
-        )
-    if v2:
-        upstream_servers.append(
-            f"        server app_v2:8000 weight={v2} "
-            "max_fails=2 fail_timeout=5s;"
-        )
-    upstream_config = "\n".join(upstream_servers)
-
-    nginx_config = f"""
-worker_processes auto;
-
-events {{
-    worker_connections 1024;
-}}
-
-http {{
-
-    access_log /dev/stdout;
-    error_log /dev/stderr warn;
-
-    upstream app_pool {{
-
-{upstream_config}
-    }}
-
-    server {{
-
-        listen 80;
-
-        location / {{
-
-            proxy_pass http://app_pool;
-
-            proxy_set_header Host $host;
-
-            proxy_set_header X-Real-IP $remote_addr;
-
-            proxy_connect_timeout 2s;
-
-            proxy_read_timeout 5s;
-        }}
-    }}
-}}
-"""
-
-    with open(CONFIG, "w") as file:
-        file.write(nginx_config)
-
-    docker_client = docker.from_env(timeout=3)
-
-    proxy = docker_client.containers.get(
-        PROXY_CONTAINER
-    )
-
-    # Test configuration first
-    result = proxy.exec_run(
-        "nginx -t"
-    )
-
-    if result.exit_code != 0:
-
-        output = result.output.decode(
-            errors="replace"
-        )
-
-        raise RuntimeError(
-            f"Nginx configuration failed: {output}"
-        )
-
-    # Gracefully reload Nginx
-    result = proxy.exec_run(
-        "nginx -s reload"
-    )
-
-    if result.exit_code != 0:
-
-        output = result.output.decode(
-            errors="replace"
-        )
-
-        raise RuntimeError(
-            f"Nginx reload failed: {output}"
-        )
+    app.state.traffic_router.set_percentages(v1, v2)
+    deployment_state["traffic"] = v2
 
     record(
         f"Traffic changed: V1={v1}% | V2={v2}%"
     )
+
+
+def stage_phase(is_final_stage: bool) -> DeploymentPhase:
+    return (
+        DeploymentPhase.FULL_ROLLOUT
+        if is_final_stage
+        else DeploymentPhase.CANARY
+    )
+
+
+def candidate_container_name() -> str:
+    config = app.state.zerodown_config
+    return app.state.docker_manager.container_name(config.app.name, "v2")
+
+
+def candidate_app_url() -> str:
+    config = app.state.zerodown_config
+    return app.state.docker_manager.app_url(
+        config.app.name,
+        "v2",
+        config.app.port,
+    )
+
+
+async def build_and_start_v2() -> None:
+    config = app.state.zerodown_config
+    manager = app.state.docker_manager
+    container_name = candidate_container_name()
+    image_tag = manager.image_tag(config.app.name, "v2")
+
+    if await asyncio.to_thread(manager.container_exists, container_name):
+        await asyncio.to_thread(manager.remove_container, container_name)
+
+    image_id = await asyncio.to_thread(
+        manager.build_image,
+        config.app.build_context,
+        config.app.dockerfile,
+        image_tag,
+    )
+    record(
+        f"Built V2 image {image_tag} ({image_id})",
+        "starting",
+        DeploymentPhase.STARTING,
+    )
+    details = await asyncio.to_thread(
+        manager.start_container,
+        image_tag,
+        container_name,
+        config.app.port,
+        "v2",
+        config.app.name,
+        manager.host_port("v2"),
+    )
+    deployment_state["container_name"] = container_name
+    app.state.traffic_router.set_version_target(
+        "v2",
+        container_name,
+        container_name,
+    )
+    record(f"Started V2 container {details['name']}")
 
 
 # --------------------------------------------------
@@ -282,45 +306,40 @@ async def check_endpoint(
 # --------------------------------------------------
 
 async def validate_v2():
-
-    config = app.state.zerodown_config
-    tests = [config.health.endpoint, *config.health.smoke_endpoints]
-
-    for path in tests:
-
-        success, message = await check_endpoint(
-            V2_URL,
-            path,
-            "v2",
-        )
-
-        if not success:
-
-            return False, message
-
-        record(
-            f"V2 test passed: {path}"
-        )
-
-    return (
-        True,
-        "All V2 validation tests passed",
+    container_name = candidate_container_name()
+    result = await validate_version(
+        "v2",
+        container_name=container_name,
+        base_url=candidate_app_url(),
     )
+    deployment_state["health"] = "healthy" if result.healthy else "unhealthy"
+    for check in result.checks:
+        if check.get("endpoint") and check["status"] == "HEALTHY":
+            record(f"V2 test passed: {check['endpoint']}")
+        else:
+            record(
+                f"V2 {check['check']} validation: {check['status']} - "
+                f"{check['message']}"
+            )
+
+    return result.healthy, result.message
 
 
 async def set_v2_demo_failure(enabled: bool):
     """Toggle V2's local demo-only health failure switch."""
     async with httpx.AsyncClient(timeout=3) as client:
         response = await client.post(
-            f"{V2_URL}/demo/failure/{str(enabled).lower()}"
+            f"{candidate_app_url()}/demo/failure/{str(enabled).lower()}"
         )
     response.raise_for_status()
 
 
-def get_v2_resource_metrics():
+def get_v2_resource_metrics(container_name: str | None = None):
     """Read current V2 CPU and memory usage from Docker stats."""
     try:
-        container = docker.from_env(timeout=3).containers.get(V2_CONTAINER)
+        container = docker.from_env(timeout=3).containers.get(
+            container_name or deployment_state.get("container_name") or V2_CONTAINER
+        )
         stats = container.stats(stream=False)
         cpu_stats = stats.get("cpu_stats", {})
         previous_cpu = stats.get("precpu_stats", {})
@@ -366,8 +385,12 @@ def persist_risk_observation(metrics, prediction):
         telemetry_file.write(json.dumps(observation, sort_keys=True) + "\n")
 
 async def score_canary_metrics(metrics):
-    resource_metrics = await asyncio.to_thread(get_v2_resource_metrics)
+    resource_metrics = await asyncio.to_thread(
+        get_v2_resource_metrics,
+        deployment_state.get("container_name"),
+    )
     metrics.update(resource_metrics)
+    deployment_state["metrics"] = dict(metrics)
     prediction = predict_deployment_risk(metrics)
     if RISK_TELEMETRY_PATH:
         try:
@@ -464,7 +487,7 @@ async def monitor_canary(
 
             health_started = time.perf_counter()
             healthy, health_message = await check_endpoint(
-                V2_URL,
+                candidate_app_url(),
                 app.state.zerodown_config.health.endpoint,
                 "v2",
             )
@@ -472,6 +495,7 @@ async def monitor_canary(
             health_checks += 1
             if not healthy:
                 health_failures += 1
+                deployment_state["health"] = "unhealthy"
                 metrics = {
                     "requests": requests,
                     "error_rate": errors / requests if requests else 1.0,
@@ -479,6 +503,8 @@ async def monitor_canary(
                     "success_rate": successes / requests if requests else 0.0,
                     "p95_latency_ms": percentile_95(latencies_ms),
                     "health_ok": False,
+                    "health_status": "unhealthy",
+                    "health_error": health_message,
                 }
                 prediction = await score_canary_metrics(metrics)
                 record(
@@ -521,6 +547,7 @@ async def monitor_canary(
         "success_rate": successes / requests if requests else 0.0,
         "p95_latency_ms": percentile_95(latencies_ms),
         "health_ok": health_failures == 0 and health_checks > 0,
+        "health_status": "healthy" if health_failures == 0 else "unhealthy",
     }
     prediction = await score_canary_metrics(metrics)
     message = (
@@ -546,23 +573,76 @@ async def monitor_canary(
 # ROLLBACK
 # --------------------------------------------------
 
-def rollback():
-
+def rollback(
+    reason: str = "manual_rollback",
+    failed_version: str = "v2",
+    traffic_at_failure: int | None = None,
+    cleanup_candidate: bool = False,
+):
+    if traffic_at_failure is None:
+        traffic_at_failure = app.state.traffic_router.get_traffic()["v2_percent"]
+    reason_code = reason_code_for(reason)
     record(
         "Starting automatic rollback",
         "rolling_back",
         DeploymentPhase.ROLLBACK,
     )
 
-    set_traffic(
-        100,
-        0,
-    )
+    set_traffic(100, 0)
+    deployment_state["rollback"] = {
+        "status": DeploymentPhase.ROLLBACK.value,
+        "reason": reason_code,
+        "detail": reason,
+        "failed_version": failed_version,
+        "traffic_at_failure": traffic_at_failure,
+        "stable_version": "v1",
+    }
 
     record(
         "Rollback complete: V1 receives 100% traffic",
         "rolled_back",
     )
+    if cleanup_candidate:
+        preserve_and_remove_candidate()
+
+
+def reason_code_for(reason: str) -> str:
+    normalized = reason.lower()
+    if "error rate" in normalized or "http 5xx" in normalized:
+        return "error_rate_exceeded"
+    if "latency" in normalized or "timed out" in normalized:
+        return "latency_exceeded"
+    if "cpu" in normalized:
+        return "cpu_exceeded"
+    if "memory" in normalized:
+        return "memory_exceeded"
+    if "health" in normalized or "unhealthy" in normalized:
+        return "health_check_failed"
+    if "risk" in normalized:
+        return "risk_threshold_exceeded"
+    return "deployment_failed"
+
+
+def preserve_and_remove_candidate() -> None:
+    container_name = deployment_state.get("container_name")
+    if not container_name:
+        return
+
+    manager = app.state.docker_manager
+    try:
+        deployment_state["candidate_logs"] = manager.container_logs(
+            container_name,
+            tail=500,
+        )
+    except (docker.errors.DockerException, ValueError) as error:
+        record(f"Could not preserve failed V2 logs: {error}")
+
+    try:
+        app.state.traffic_router.reset_version_target("v2")
+        manager.remove_container(container_name)
+        record(f"Removed failed V2 container {container_name}")
+    except (docker.errors.DockerException, ValueError) as error:
+        record(f"Could not remove failed V2 container: {error}")
 
 
 # --------------------------------------------------
@@ -575,8 +655,15 @@ async def deployment_job(
 ):
 
     async with deployment_lock:
-
+        deployment_state["active"] = True
         deployment_state["steps"] = []
+        deployment_state["progress"] = 0
+        deployment_state["traffic"] = 0
+        deployment_state["health"] = "unknown"
+        deployment_state["metrics"] = {}
+        deployment_state["rollback"] = None
+        deployment_state["candidate_logs"] = None
+        deployment_state["container_name"] = None
 
         deployment_state["started_at"] = (
             datetime.now(
@@ -587,51 +674,53 @@ async def deployment_job(
         deployment_state["finished_at"] = None
 
         try:
+            stages = validate_rollout_stages(
+                app.state.zerodown_config.rollout.stages
+            )
+            set_traffic(100, 0)
 
             if simulate_failure:
-                await set_v2_demo_failure(False)
                 record("Failure demo armed: V2 starts healthy")
 
             record(
                 "Deployment started",
+                "building",
+                DeploymentPhase.BUILDING,
+            )
+            await build_and_start_v2()
+
+            record(
+                "V2 container started; validating candidate",
                 "validating",
                 DeploymentPhase.HEALTH_CHECK,
             )
 
-            # --------------------------------------
-            # STEP 1
-            # Validate V2
-            # --------------------------------------
-
-            success, message = (
-                await validate_v2()
-            )
+            success, message = await validate_v2()
 
             if not success:
-
                 record(
                     f"V2 validation failed: {message}"
                 )
-
-                rollback()
-
+                deployment_state["health"] = "unhealthy"
+                rollback(
+                    message,
+                    traffic_at_failure=0,
+                    cleanup_candidate=True,
+                )
                 return
 
             record(
                 "V2 passed health, readiness and smoke tests"
             )
 
-            # --------------------------------------
-            # GRADUAL CANARY ROLLOUT
-            # --------------------------------------
-
-            for v2_percent in app.state.zerodown_config.rollout.stages:
-                phase = {
-                    10: DeploymentPhase.CANARY_10,
-                    25: DeploymentPhase.CANARY_25,
-                    50: DeploymentPhase.CANARY_50,
-                    100: DeploymentPhase.FULL_ROLLOUT,
-                }[v2_percent]
+            for stage_index, v2_percent in enumerate(stages, start=1):
+                is_final_stage = stage_index == len(stages)
+                phase = stage_phase(is_final_stage)
+                phase_name = (
+                    DeploymentPhase.FULL_ROLLOUT.value
+                    if is_final_stage
+                    else f"CANARY_{v2_percent}"
+                )
                 set_traffic(
                     100 - v2_percent,
                     v2_percent,
@@ -640,23 +729,37 @@ async def deployment_job(
                     f"Canary stage started: V2={v2_percent}%",
                     phase=phase,
                 )
+                deployment_state["phase"] = phase_name
+                deployment_state["status"] = phase_name.lower()
+                deployment_state["progress"] = round(
+                    stage_index / len(stages) * 100
+                )
+
+                failure_stage = min(2, len(stages))
+                if simulate_failure and stage_index == failure_stage:
+                    await set_v2_demo_failure(True)
+                    deployment_state["health"] = "unhealthy"
+                    record(
+                        f"Demo injected V2 health failure at V2={v2_percent}%"
+                    )
 
                 success, message = await monitor_canary(
                     v2_percent,
                     app.state.zerodown_config.rollout.stage_seconds,
                 )
                 if not success:
+                    deployment_state["health"] = "unhealthy"
                     record(f"Canary stage failed: {message}")
-                    rollback()
+                    rollback(
+                        message,
+                        traffic_at_failure=v2_percent,
+                        cleanup_candidate=True,
+                    )
                     return
 
                 record(
                     f"Canary stage passed: V2={v2_percent}%"
                 )
-
-            # --------------------------------------
-            # OBSERVATION
-            # --------------------------------------
 
             record(
                 f"Observing V2 for "
@@ -664,50 +767,81 @@ async def deployment_job(
             )
 
             success, message = await monitor_canary(
-                100,
+                stages[-1],
                 observation_seconds,
                 simulate_failure=simulate_failure,
             )
             if not success:
+                deployment_state["health"] = "unhealthy"
                 record(f"Observation failed: {message}")
-                rollback()
-                if simulate_failure:
-                    await set_v2_demo_failure(False)
-                    record("V2 demo health restored after rollback")
+                rollback(
+                    message,
+                    traffic_at_failure=stages[-1],
+                    cleanup_candidate=True,
+                )
                 return
 
             record(
-                "V2 promoted to 100% traffic",
+                f"V2 promoted to {stages[-1]}% traffic",
                 "succeeded",
                 DeploymentPhase.SUCCESS,
             )
+            deployment_state["phase"] = DeploymentPhase.SUCCESS.value
+            deployment_state["progress"] = 100
+
+        except asyncio.CancelledError:
+            record("Deployment interrupted; restoring stable V1 traffic")
+            try:
+                rollback(
+                    "Deployment interrupted",
+                    traffic_at_failure=deployment_state["traffic"],
+                    cleanup_candidate=True,
+                )
+                deployment_state["status"] = "interrupted"
+                deployment_state["phase"] = DeploymentPhase.ROLLBACK.value
+                deployment_state["message"] = (
+                    "Deployment interrupted; V1 restored"
+                )
+            except Exception as rollback_error:
+                record(
+                    f"CRITICAL: rollback after interruption failed: {rollback_error}",
+                    "failed",
+                    DeploymentPhase.FAILED,
+                )
+            raise
 
         except Exception as error:
-
-            record(
-                f"Deployment error: {error}"
-            )
-
+            record(f"Deployment error: {error}")
             try:
-
-                rollback()
-
+                deployment_state["health"] = "unhealthy"
+                rollback(
+                    str(error),
+                    traffic_at_failure=deployment_state["traffic"],
+                    cleanup_candidate=True,
+                )
             except Exception as rollback_error:
-
                 record(
                     "CRITICAL: rollback failed: "
                     f"{rollback_error}",
                     "failed",
                     DeploymentPhase.FAILED,
                 )
+            else:
+                record(
+                    f"Deployment failed: {error}",
+                    "failed",
+                    DeploymentPhase.FAILED,
+                )
 
         finally:
-
             deployment_state["finished_at"] = (
                 datetime.now(
                     timezone.utc
                 ).isoformat()
             )
+            deployment_state["active"] = False
+            if app.state.deployment_task is asyncio.current_task():
+                app.state.deployment_task = None
 
 
 # --------------------------------------------------
@@ -759,93 +893,98 @@ def deployment_status():
     return deployment_state
 
 
+@app.get("/deployment/status")
+def deployment_progress_status():
+    traffic = app.state.traffic_router.get_traffic()
+    return {
+        "status": deployment_state["phase"],
+        "version": deployment_state["version"],
+        "traffic": traffic["v2_percent"],
+        "health": deployment_state["health"],
+        "progress": deployment_state["progress"],
+        "metrics": deployment_state["metrics"],
+        "rollback": deployment_state["rollback"],
+        "candidate_logs": deployment_state["candidate_logs"],
+        "message": deployment_state["message"],
+        "started_at": deployment_state["started_at"],
+        "finished_at": deployment_state["finished_at"],
+    }
+
+
 # --------------------------------------------------
 # START DEPLOYMENT
 # --------------------------------------------------
 
-@app.post("/deploy")
-async def start_deployment(
-    request: DeployRequest,
-    background_tasks: BackgroundTasks,
-):
-
-    if deployment_state["status"] in [
-        "validating",
-        "rolling_back",
-    ]:
-
+def schedule_deployment(observation_seconds: int, simulate_failure: bool = False):
+    if deployment_state["active"]:
         raise HTTPException(
             status_code=409,
             detail="Deployment already running",
         )
 
-    observation_seconds = (
-        request.observation_seconds
-        if request.observation_seconds is not None
-        else app.state.zerodown_config.rollout.observation_seconds
-    )
-
-    if not (
-        1 <= observation_seconds <= 300
-    ):
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "observation_seconds must "
-                "be between 1 and 300"
-            ),
-        )
-
-    background_tasks.add_task(
-        deployment_job,
-        observation_seconds,
-    )
-
-    return {
-        "accepted": True,
-        "message": (
-            "Deployment started. "
-            "Check /status."
-        ),
-    }
-
-
-@app.post("/demo/failure")
-async def start_failure_demo(
-    background_tasks: BackgroundTasks,
-    request: DeployRequest | None = None,
-):
-    """Run a canary, fail V2 during observation, and demonstrate rollback."""
-    if deployment_state["status"] in [
-        "validating",
-        "rolling_back",
-    ]:
-        raise HTTPException(
-            status_code=409,
-            detail="Deployment already running",
-        )
-
-    observation_seconds = (
-        request.observation_seconds
-        if request is not None
-        and request.observation_seconds is not None
-        else app.state.zerodown_config.rollout.observation_seconds
-    )
     if not 1 <= observation_seconds <= 300:
         raise HTTPException(
             status_code=400,
             detail="observation_seconds must be between 1 and 300",
         )
 
-    background_tasks.add_task(
-        deployment_job,
-        observation_seconds,
-        True,
+    deployment_state["active"] = True
+    try:
+        task = asyncio.create_task(
+            deployment_job(observation_seconds, simulate_failure)
+        )
+    except Exception:
+        deployment_state["active"] = False
+        raise
+    app.state.deployment_task = task
+    return task
+
+
+@app.post("/deploy")
+async def start_deployment(request: DeployRequest):
+    observation_seconds = (
+        request.observation_seconds
+        if request.observation_seconds is not None
+        else app.state.zerodown_config.rollout.observation_seconds
     )
+
+    schedule_deployment(observation_seconds)
+
+    return {
+        "accepted": True,
+        "message": "Deployment started. Check /deployment/status.",
+    }
+
+
+@app.post("/demo/failure")
+async def start_failure_demo(request: DeployRequest | None = None):
+    """Run a canary, fail V2 during observation, and demonstrate rollback."""
+    observation_seconds = (
+        request.observation_seconds
+        if request is not None
+        and request.observation_seconds is not None
+        else app.state.zerodown_config.rollout.observation_seconds
+    )
+    schedule_deployment(observation_seconds, True)
     return {
         "accepted": True,
         "message": "Failure demo started. V2 will fail during observation; check /status.",
+    }
+
+
+@app.post("/deployment/cancel")
+async def cancel_deployment():
+    task = app.state.deployment_task
+    if not deployment_state["active"] or task is None:
+        raise HTTPException(status_code=409, detail="No deployment is running")
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+    return {
+        "status": deployment_state["status"],
+        "message": deployment_state["message"],
     }
 
 
@@ -854,10 +993,21 @@ async def start_failure_demo(
 # --------------------------------------------------
 
 @app.post("/rollback")
-def manual_rollback():
+async def manual_rollback():
 
     try:
-
+        task = app.state.deployment_task
+        if deployment_state["active"] and task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            return {
+                "status": "interrupted",
+                "v1": 100,
+                "v2": 0,
+            }
         rollback()
 
         return {
@@ -867,7 +1017,11 @@ def manual_rollback():
         }
 
     except Exception as error:
-
+        record(
+            f"Manual rollback failed: {error}",
+            "failed",
+            DeploymentPhase.FAILED,
+        )
         raise HTTPException(
             status_code=500,
             detail=str(error),

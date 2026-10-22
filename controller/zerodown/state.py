@@ -10,6 +10,7 @@ class DeploymentPhase(str, Enum):
     BUILDING = "BUILDING"
     STARTING = "STARTING"
     HEALTH_CHECK = "HEALTH_CHECK"
+    CANARY = "CANARY"
     CANARY_10 = "CANARY_10"
     CANARY_25 = "CANARY_25"
     CANARY_50 = "CANARY_50"

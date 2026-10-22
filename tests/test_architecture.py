@@ -136,10 +136,11 @@ def test_configuration_api_returns_loaded_yaml_shape():
 
 def test_deployment_uses_configured_rollout_plan(monkeypatch):
     events = []
+    phases = []
     current_config = controller.app.state.zerodown_config
     custom_rollout = replace(
         current_config.rollout,
-        stages=(50, 100),
+        stages=(20, 60, 100),
         stage_seconds=0.5,
     )
     monkeypatch.setattr(
@@ -147,9 +148,21 @@ def test_deployment_uses_configured_rollout_plan(monkeypatch):
         "zerodown_config",
         replace(current_config, rollout=custom_rollout),
     )
+    monkeypatch.setattr(
+        controller.app.state.deployment_state_store,
+        "set_phase",
+        lambda phase, message: phases.append((phase, message)),
+    )
 
-    async def check_endpoint(base_url, path, expected_version=None):
-        events.append(("check", path))
+    async def prepare_candidate():
+        controller.record(
+            "Built and started test V2",
+            "starting",
+            DeploymentPhase.STARTING,
+        )
+
+    async def validate_v2():
+        events.append(("validate", "v2"))
         return True, "healthy"
 
     def set_traffic(v1, v2):
@@ -159,24 +172,109 @@ def test_deployment_uses_configured_rollout_plan(monkeypatch):
         events.append(("monitor", v2_percent, observation_seconds))
         return True, "healthy"
 
-    monkeypatch.setattr(controller, "check_endpoint", check_endpoint)
+    monkeypatch.setattr(controller, "validate_v2", validate_v2)
+    monkeypatch.setattr(controller, "build_and_start_v2", prepare_candidate)
     monkeypatch.setattr(controller, "set_traffic", set_traffic)
     monkeypatch.setattr(controller, "monitor_canary", monitor_canary)
 
     asyncio.run(controller.deployment_job(observation_seconds=7))
 
     assert [event for event in events if event[0] == "traffic"] == [
-        ("traffic", 50, 50),
+        ("traffic", 100, 0),
+        ("traffic", 80, 20),
+        ("traffic", 40, 60),
         ("traffic", 0, 100),
     ]
     assert [
         event for event in events
         if event[0] == "monitor"
     ] == [
-        ("monitor", 50, 0.5),
+        ("monitor", 20, 0.5),
+        ("monitor", 60, 0.5),
         ("monitor", 100, 0.5),
         ("monitor", 100, 7),
     ]
+    assert [phase for phase, _ in phases] == [
+        DeploymentPhase.BUILDING,
+        DeploymentPhase.STARTING,
+        DeploymentPhase.HEALTH_CHECK,
+        DeploymentPhase.CANARY,
+        DeploymentPhase.CANARY,
+        DeploymentPhase.FULL_ROLLOUT,
+        DeploymentPhase.SUCCESS,
+    ]
+    messages = [
+        step["message"]
+        for step in controller.deployment_state["steps"]
+    ]
+    assert "Canary stage started: V2=20%" in messages
+    assert "Canary stage started: V2=60%" in messages
+
+
+def test_deployment_status_api_reports_live_rollout_fields(monkeypatch):
+    class FakeTrafficRouter:
+        @staticmethod
+        def get_traffic():
+            return {"v1_percent": 75, "v2_percent": 25}
+
+    monkeypatch.setattr(
+        controller.app.state,
+        "traffic_router",
+        FakeTrafficRouter(),
+    )
+    for key, value in {
+        "phase": "CANARY_25",
+        "health": "healthy",
+        "progress": 50,
+        "metrics": {"error_rate": 0.01},
+        "rollback": None,
+        "candidate_logs": None,
+        "message": "Monitoring 25% canary",
+    }.items():
+        monkeypatch.setitem(controller.deployment_state, key, value)
+
+    with TestClient(controller.app) as client:
+        response = client.get("/deployment/status")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "CANARY_25",
+        "version": "v2",
+        "traffic": 25,
+        "health": "healthy",
+        "progress": 50,
+        "metrics": {"error_rate": 0.01},
+        "rollback": None,
+        "candidate_logs": None,
+        "message": "Monitoring 25% canary",
+        "started_at": controller.deployment_state["started_at"],
+        "finished_at": controller.deployment_state["finished_at"],
+    }
+
+
+def test_second_rollout_is_rejected_while_one_is_active(monkeypatch):
+    monkeypatch.setitem(controller.deployment_state, "active", True)
+
+    with TestClient(controller.app) as client:
+        response = client.post("/deploy", json={"observation_seconds": 1})
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Deployment already running"
+
+
+def test_configured_application_port_drives_controller(monkeypatch):
+    current_config = controller.app.state.zerodown_config
+    monkeypatch.setattr(
+        controller.app.state,
+        "zerodown_config",
+        replace(
+            current_config,
+            app=replace(current_config.app, port=8123),
+        ),
+    )
+    monkeypatch.setattr(controller, "V2_URL", None)
+
+    assert controller.app_url("v2") == "http://app_v2:8123"
 
 
 @pytest.mark.parametrize(
@@ -204,31 +302,3 @@ def test_configured_safety_limits_are_enforced(metric, value, message):
 
     assert failure is not None
     assert message in failure
-
-
-def test_health_checks_use_configured_endpoints(monkeypatch):
-    current_config = controller.app.state.zerodown_config
-    custom_health = replace(
-        current_config.health,
-        endpoint="/live",
-        smoke_endpoints=("/smoke",),
-    )
-    monkeypatch.setattr(
-        controller.app.state,
-        "zerodown_config",
-        replace(current_config, health=custom_health),
-    )
-    checked_endpoints = []
-
-    async def check_endpoint(base_url, endpoint, expected_version=None):
-        checked_endpoints.append((endpoint, expected_version))
-        return True, "healthy"
-
-    monkeypatch.setattr(controller, "check_endpoint", check_endpoint)
-
-    import asyncio
-
-    success, _ = asyncio.run(controller.validate_v2())
-
-    assert success
-    assert checked_endpoints == [("/live", "v2"), ("/smoke", "v2")]
