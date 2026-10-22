@@ -55,10 +55,12 @@ services:
       OBSERVATION_SECONDS: 15
       CANARY_STEP_SECONDS: 3
       MAX_CANARY_ERROR_RATE: "0.10"
+      RISK_TELEMETRY_PATH: /data/risk-telemetry.jsonl
 
     volumes:
       - ./proxy/nginx.conf:/shared/nginx.conf
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
 
     depends_on:
       - proxy

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import math
 import os
 import time
@@ -71,6 +72,7 @@ ML_RISK_ROLLBACK_THRESHOLD = float(
     os.getenv("ML_RISK_ROLLBACK_THRESHOLD", "0.65")
 )
 V2_CONTAINER = os.getenv("V2_CONTAINER", "zerodown-app-v2")
+RISK_TELEMETRY_PATH = os.getenv("RISK_TELEMETRY_PATH")
 
 
 # --------------------------------------------------
@@ -348,10 +350,30 @@ def percentile_95(values):
     return ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)]
 
 
+def persist_risk_observation(metrics, prediction):
+    """Append a real canary observation for later model calibration."""
+    if not RISK_TELEMETRY_PATH:
+        return
+    observation = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "deployment_started_at": deployment_state.get("started_at"),
+        "metrics": metrics,
+        "prediction": prediction,
+    }
+    telemetry_path = Path(RISK_TELEMETRY_PATH)
+    telemetry_path.parent.mkdir(parents=True, exist_ok=True)
+    with telemetry_path.open("a", encoding="utf-8") as telemetry_file:
+        telemetry_file.write(json.dumps(observation, sort_keys=True) + "\n")
+
 async def score_canary_metrics(metrics):
     resource_metrics = await asyncio.to_thread(get_v2_resource_metrics)
     metrics.update(resource_metrics)
     prediction = predict_deployment_risk(metrics)
+    if RISK_TELEMETRY_PATH:
+        try:
+            await asyncio.to_thread(persist_risk_observation, metrics, prediction)
+        except OSError as error:
+            record(f"Risk telemetry could not be saved: {error}")
     record(
         f"Deployment risk: {prediction['risk_percent']}% - "
         f"{prediction['risk_level']}"
