@@ -1,0 +1,25 @@
+app:
+  name: notes-service
+  build_context: ./examples/notes-service
+  dockerfile: Dockerfile
+  port: 8081
+
+health:
+  endpoint: /ready
+  smoke_endpoints:
+    - /
+
+rollout:
+  stages:
+    - 10
+    - 25
+    - 50
+    - 100
+  stage_seconds: 3
+  observation_seconds: 15
+
+limits:
+  max_error_rate: 5
+  max_latency_ms: 1000
+  max_cpu_percent: 90
+  max_memory_percent: 90

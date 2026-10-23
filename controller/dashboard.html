@@ -71,6 +71,12 @@
     .stage { display: flex; justify-content: center; align-items: center; gap: 7px; min-height: 39px; padding: 6px; color: var(--muted); background: #f7f9fc; border: 1px solid var(--line); border-radius: 10px; font-size: 12px; font-weight: 700; }
     .stage.done { color: var(--green); background: #effaf4; border-color: #b9e7cb; }
     .stage.current { color: var(--blue); background: #edf2ff; border-color: #9cb2ff; box-shadow: 0 0 0 2px #315eea12; }
+    .demo-timeline { display: flex; gap: 8px; margin-top: 18px; padding-top: 15px; overflow-x: auto; border-top: 1px solid var(--line); }
+    .demo-step { position: relative; display: flex; flex: 1 0 112px; flex-direction: column; justify-content: center; min-height: 54px; padding: 8px; color: var(--muted); background: #f7f9fc; border: 1px solid var(--line); border-radius: 10px; text-align: center; font-size: 10px; font-weight: 750; letter-spacing: .03em; }
+    .demo-step:not(:last-child)::after { content: "→"; position: absolute; z-index: 1; right: -9px; color: #98a6b8; font-size: 13px; }
+    .demo-step.done { color: var(--green); background: #effaf4; border-color: #b9e7cb; }
+    .demo-step.current { color: var(--blue); background: #edf2ff; border-color: #9cb2ff; }
+    .demo-step.failed { color: var(--red); background: #fff0f2; border-color: #f2b8c1; }
     .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
     .metric { min-width: 0; padding: 13px; background: #f8fafc; border: 1px solid #edf1f6; border-radius: 11px; }
     .metric-value { margin-top: 8px; font-size: 19px; font-weight: 750; letter-spacing: -.03em; overflow-wrap: anywhere; }
@@ -81,6 +87,9 @@
     .event { display: grid; grid-template-columns: 95px 1fr; gap: 12px; padding: 9px 11px; background: #f8fafc; border: 1px solid #edf1f6; border-radius: 9px; font-size: 12px; }
     .event time { color: var(--muted); font-variant-numeric: tabular-nums; }
     .event span { overflow-wrap: anywhere; }
+    .history-entry { display: grid; gap: 4px; }
+    .history-title { font-weight: 750; }
+    .history-detail { color: var(--muted); }
     .empty, .notice { color: var(--muted); font-size: 12px; }
     .empty { padding: 10px 0; }
     .actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
@@ -132,7 +141,7 @@
         </div>
         <div class="actions">
           <button class="primary" id="deploy-button">Deploy V2</button>
-          <button id="failure-button">Run failure demo</button>
+          <button id="failure-button">Run deterministic rollback demo</button>
           <button class="danger" id="rollback-button">Rollback to V1</button>
         </div>
         <div class="notice" id="notice" role="status" aria-live="polite"></div>
@@ -175,9 +184,10 @@
       </article>
 
       <article class="card rollout-card">
-        <div class="rollout-heading"><h2>Rollout progression</h2><span class="progress-copy" id="progress-label">Awaiting deployment</span></div>
+        <div class="rollout-heading"><div><h2>Rollout progression</h2><span class="progress-copy">Health and safety checks run at each traffic stage.</span></div><span class="progress-copy" id="progress-label">Awaiting deployment</span></div>
         <div class="track" role="progressbar" aria-label="Rollout progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="progress-bar"></div></div>
         <div class="stages" id="stages"></div>
+        <div class="demo-timeline" id="demo-timeline" aria-label="Failure and rollback demonstration" hidden></div>
       </article>
 
       <article class="card metrics-card">
@@ -195,11 +205,18 @@
         <div class="events-heading"><h2>Deployment event log</h2><span class="progress-copy" id="event-count">Live controller events</span></div>
         <div class="events" id="events"><div class="empty">Waiting for deployment events…</div></div>
       </article>
+
+      <article class="card events-card">
+        <div class="events-heading"><h2>Recent deployment history</h2><span class="progress-copy" id="history-count">Preserved deployments</span></div>
+        <div class="events" id="history"><div class="empty">No completed deployments yet.</div></div>
+      </article>
     </section>
   </main>
 <script>
   const byId = (id) => document.getElementById(id);
   let refreshing = false;
+  let operatorToken = null;
+  let tokenPrompt = null;
   let configData = null;
 
   function setNotice(message, isError = false) {
@@ -209,9 +226,46 @@
   }
 
   async function request(path, options = {}) {
-    const response = await fetch(path, { cache: 'no-store', ...options });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.detail || `Request failed (${response.status})`);
+    const makeRequest = (token) => fetch(path, {
+      cache: 'no-store',
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    let response = await makeRequest(operatorToken);
+    if (response.status === 401 && path !== '/api/v1/deploy') {
+      if (!tokenPrompt) {
+        tokenPrompt = Promise.resolve(window.prompt('Enter the ZeroDown deployment token'))
+          .then((token) => {
+            operatorToken = token || null;
+            return operatorToken;
+          })
+          .finally(() => { tokenPrompt = null; });
+      }
+      const token = await tokenPrompt;
+      if (!token) throw new Error('Authentication required');
+      response = await makeRequest(operatorToken);
+    }
+    const contentType = response.headers.get('content-type') || '';
+    let payload = {};
+    if (contentType.includes('application/json')) {
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error('The controller returned an unreadable response. Check its logs.');
+      }
+    } else if (!response.ok) {
+      throw new Error(`Controller request failed (${response.status}). Check that ZeroDown is running.`);
+    }
+    if (!response.ok) {
+      const detail = payload.detail;
+      const message = Array.isArray(detail)
+        ? detail.map((item) => item.msg || JSON.stringify(item)).join('; ')
+        : detail;
+      throw new Error(message || `Controller request failed (${response.status})`);
+    }
     return payload;
   }
 
@@ -231,7 +285,8 @@
   }
 
   function stateStyle(state, active, health) {
-    if (state === 'ROLLBACK' || state === 'FAILED') return ['rollback', 'Rollback'];
+    if (state === 'ROLLBACK') return ['rollback', 'Rolled back'];
+    if (state === 'FAILED') return ['failed', 'Failed'];
     if (state === 'SUCCESS') return ['success', 'Success'];
     if (active) return ['deploying', 'Deploying'];
     if (health === 'unhealthy') return ['warning', 'Warning'];
@@ -272,8 +327,8 @@
         ? 'Rollout complete'
         : status.status === 'ROLLBACK'
           ? `Rolled back at ${status.rollback?.traffic_at_failure ?? currentTraffic}%`
-          : status.status === 'FAILED'
-            ? 'Deployment failed'
+        : status.status === 'FAILED'
+            ? 'Deployment failed · Check the event log'
             : 'Ready for rollout';
   }
 
@@ -300,6 +355,98 @@
     });
   }
 
+  function renderHistory(deployments) {
+    const holder = byId('history');
+    holder.replaceChildren();
+    byId('history-count').textContent = `${deployments.length} preserved deployments`;
+    if (!deployments.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'No completed deployments yet.';
+      holder.append(empty);
+      return;
+    }
+    deployments.forEach((deployment) => {
+      const row = document.createElement('div');
+      row.className = 'event';
+      const time = document.createElement('time');
+      const endTime = deployment.end_time || deployment.finished_at;
+      const startTime = deployment.start_time || deployment.started_at;
+      time.textContent = endTime
+        ? new Date(endTime).toLocaleString()
+        : '';
+      const details = document.createElement('span');
+      details.className = 'history-entry';
+      const title = document.createElement('span');
+      title.className = 'history-title';
+      title.textContent = `Deployment #${deployment.deployment_id} · ${deployment.application}`;
+      const versions = document.createElement('span');
+      versions.className = 'history-detail';
+      const oldVersion = deployment.old_version || 'unknown';
+      const newVersion = deployment.new_version || deployment.active_version || 'unknown';
+      versions.textContent = `${oldVersion.toUpperCase()} → ${newVersion.toUpperCase()}`;
+      const status = document.createElement('span');
+      const finalStatus = deployment.final_status || deployment.status || 'UNKNOWN';
+      status.textContent = finalStatus === 'ROLLBACK' ? 'ROLLED BACK' : finalStatus;
+      const summary = deployment.metrics_summary || deployment.metrics || {};
+      const metrics = document.createElement('span');
+      metrics.className = 'history-detail';
+      const startMs = startTime ? Date.parse(startTime) : NaN;
+      const endMs = endTime ? Date.parse(endTime) : NaN;
+      const duration = Number.isFinite(startMs) && Number.isFinite(endMs)
+        ? Math.max(0, Math.round((endMs - startMs) / 1000))
+        : null;
+      const durationText = duration === null ? ''
+        : `Duration: ${Math.floor(duration / 60)}m ${String(duration % 60).padStart(2, '0')}s`;
+      const errorRate = summary.error_rate === undefined
+        ? '' : `Error rate: ${(Number(summary.error_rate) * 100).toFixed(2)}%`;
+      metrics.textContent = [durationText, errorRate].filter(Boolean).join(' · ');
+      details.append(title, versions, status);
+      if (metrics.textContent) details.append(metrics);
+      const reason = deployment.rollback_reason || deployment.rollback?.detail || deployment.rollback?.reason;
+      if (reason) {
+        const rollback = document.createElement('span');
+        rollback.className = 'history-detail';
+        rollback.textContent = `Reason: ${reason}`;
+        details.append(rollback);
+      }
+      row.append(time, details);
+      holder.append(row);
+    });
+  }
+
+  function renderDemoTimeline(status) {
+    const holder = byId('demo-timeline');
+    holder.replaceChildren();
+    holder.hidden = !status.demo_mode;
+    if (!status.demo_mode) return;
+
+    const events = status.events || [];
+    const messages = events.map((event) => event.message || '');
+    const has = (message) => messages.includes(message);
+    const started = (stage) => has(`Canary stage started: V2=${stage}%`);
+    const passed = (stage) => has(`Canary stage passed: V2=${stage}%`);
+    const failureDetected = messages.some((message) => message.startsWith('ZeroDown detected canary failure:'));
+    const rollbackStarted = has('Starting automatic rollback');
+    const restored = has('V1 restored: 100% traffic');
+    const steps = [
+      { label: 'ROLLING OUT V2', done: messages.includes('V2 passed health, readiness and smoke tests') },
+      { label: '10%', done: passed(10), current: started(10) && !passed(10) },
+      { label: '25%', done: passed(25), current: started(25) && !passed(25) },
+      { label: '50%', done: passed(50), current: started(50) && !failureDetected },
+      { label: 'FAILURE DETECTED', done: failureDetected, failed: failureDetected },
+      { label: 'ROLLBACK', done: rollbackStarted, current: rollbackStarted && !restored },
+      { label: 'V1 RESTORED', done: restored, current: restored }
+    ];
+
+    steps.forEach((step) => {
+      const node = document.createElement('div');
+      node.className = `demo-step${step.done ? ' done' : ''}${step.current ? ' current' : ''}${step.failed ? ' failed' : ''}`;
+      node.textContent = step.label;
+      holder.append(node);
+    });
+  }
+
   function renderVersion(version, details, traffic, stableVersion, health) {
     const prefix = version;
     const exists = Boolean(details);
@@ -308,16 +455,20 @@
       : 'Not started';
     byId(`${prefix}-traffic`).textContent = `${traffic}%`;
     if (version === 'v1') {
-      byId('v1-role').textContent = stableVersion === 'v1' ? 'Current stable version' : 'Previous stable version';
+      byId('v1-role').textContent = stableVersion === 'v1'
+        ? 'Current stable version'
+        : 'Rollback standby';
       const badge = byId('v1-badge');
       badge.className = `badge ${exists && details.status === 'running' ? 'healthy' : 'warning'}`;
-      badge.textContent = exists && details.status === 'running' ? 'Stable' : 'Unavailable';
+      badge.textContent = exists && details.status === 'running'
+        ? stableVersion === 'v1' ? 'Stable' : 'Standby'
+        : 'Unavailable';
     } else {
       byId('v2-role').textContent = stableVersion === 'v2' ? 'Active version' : 'Candidate version';
       const badge = byId('v2-badge');
       const versionHealth = health === 'unhealthy' ? 'warning' : exists && details.health === 'healthy' ? 'healthy' : '';
-      badge.className = `badge ${versionHealth}`;
-      badge.textContent = health === 'unhealthy' ? 'Unhealthy' : exists ? (stableVersion === 'v2' ? 'Active' : details.health || 'Running') : 'Not started';
+      badge.className = `badge ${stableVersion === 'v2' ? 'success' : versionHealth}`;
+      badge.textContent = health === 'unhealthy' ? 'Unhealthy' : exists ? (stableVersion === 'v2' ? 'ACTIVE' : details.health || 'Running') : 'Not started';
       byId('v2-running').textContent = exists ? (health === 'unhealthy' ? 'Unhealthy' : details.health || details.status) : 'Not started';
     }
   }
@@ -326,13 +477,14 @@
     if (refreshing) return;
     refreshing = true;
     try {
-      const [status, legacy, config, traffic, proxy, versions] = await Promise.all([
+      const [status, legacy, config, traffic, proxy, versions, history] = await Promise.all([
         request('/deployment/status'),
         request('/status'),
         configData ? Promise.resolve(configData) : request('/api/v1/config'),
         request('/deployment/traffic'),
         request('/dashboard/proxy-health'),
-        request('/dashboard/versions')
+        request('/dashboard/versions'),
+        request('/deployment/history')
       ]);
       configData = config;
       const active = Boolean(legacy.active);
@@ -345,7 +497,9 @@
       byId('deployment-id').textContent = `Deployment ID · ${status.deployment_id || 'No deployment started'}`;
       byId('stable-version').textContent = stableVersion.toUpperCase();
       byId('candidate-version').textContent = (status.candidate_version || 'v2').toUpperCase();
-      byId('deployment-state').textContent = state.replaceAll('_', ' ');
+      byId('deployment-state').textContent = state === 'SUCCESS'
+        ? 'DEPLOYMENT SUCCESSFUL'
+        : state.replaceAll('_', ' ');
       byId('deployment-detail').textContent = status.message || 'Waiting for deployment';
       const [badgeClass, badgeText] = stateStyle(state, active, status.health);
       byId('state-badge').className = `badge ${badgeClass}`;
@@ -359,6 +513,8 @@
       renderVersion('v1', versions.v1, traffic.v1_percent, stableVersion, status.health);
       renderVersion('v2', versions.v2, traffic.v2_percent, stableVersion, status.health);
       renderStages(stages, status, active, status.progress || 0);
+      renderDemoTimeline(status);
+      renderHistory(history.deployments || []);
 
       const metrics = status.metrics || {};
       setMetric('metric-errors', metrics.error_rate, '%', limits.max_error_rate / 100, true);

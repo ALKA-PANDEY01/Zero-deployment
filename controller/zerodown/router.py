@@ -1,6 +1,7 @@
 """Programmatically route requests between the stable and candidate versions."""
 
 import re
+import logging
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -63,6 +64,27 @@ class NginxTrafficRouter:
         with self._lock:
             return dict(self._traffic)
 
+    def restore_targets(self, targets: dict[str, tuple[str, str]]) -> None:
+        if set(targets) != {"v1", "v2"}:
+            raise ValueError("Restored targets must define both V1 and V2")
+        for version, target in targets.items():
+            if (
+                not isinstance(target, (tuple, list))
+                or len(target) != 2
+                or not all(isinstance(value, str) and value for value in target)
+            ):
+                raise ValueError(
+                    f"Restored {version.upper()} target must contain a target "
+                    "and container name"
+                )
+        with self._lock:
+            self.targets = {
+                version: (target[0], target[1])
+                for version, target in targets.items()
+            }
+            self._default_targets = dict(self.targets)
+            self._traffic = self._read_configured_traffic()
+
     def set_version_target(
         self,
         version: str,
@@ -74,16 +96,22 @@ class NginxTrafficRouter:
         if not target or not container_name:
             raise ValueError("target and container_name must be non-empty")
         with self._lock:
-            if self._traffic["v2_percent"] != 0:
-                raise ValueError("Reset traffic to V1 before changing a target")
+            if self._traffic[f"{version}_percent"] != 0:
+                raise ValueError(
+                    f"Cannot change the {version.upper()} target while it "
+                    "receives traffic"
+                )
             self.targets[version] = (target, container_name)
 
     def reset_version_target(self, version: str) -> None:
         if version not in self._default_targets:
             raise ValueError("version must be either 'v1' or 'v2'")
         with self._lock:
-            if version == "v2" and self._traffic["v2_percent"] != 0:
-                raise ValueError("Reset traffic to V1 before removing its target")
+            if self._traffic[f"{version}_percent"] != 0:
+                raise ValueError(
+                    f"Cannot reset the {version.upper()} target while it "
+                    "receives traffic"
+                )
             self.targets[version] = self._default_targets[version]
 
     def _ensure_ready(self, version: str) -> None:
@@ -207,6 +235,7 @@ http {{
 
 
 traffic_api = APIRouter(tags=["Traffic"])
+logger = logging.getLogger("zerodown.traffic")
 
 
 class TrafficUpdate(BaseModel):
@@ -229,9 +258,11 @@ def update_traffic(update: TrafficUpdate, request: Request):
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except RuntimeError as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+        logger.error("Traffic update failed: %s", type(error).__name__)
+        raise HTTPException(status_code=502, detail="Traffic update failed") from error
     except docker.errors.DockerException as error:
+        logger.error("Docker traffic update failed: %s", type(error).__name__)
         raise HTTPException(
             status_code=502,
-            detail=f"Docker traffic-routing operation failed: {error}",
+            detail="Docker traffic-routing operation failed",
         ) from error

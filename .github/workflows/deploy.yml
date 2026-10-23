@@ -43,6 +43,8 @@ jobs:
 
       - name: Check local ZeroDown and restore V1 test baseline
         shell: bash
+        env:
+          ZERODOWN_DEPLOY_TOKEN: ${{ secrets.ZERODOWN_DEPLOY_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -62,13 +64,17 @@ jobs:
             exit 1
           fi
 
-          current_status="$(curl --fail --silent --show-error http://localhost:9000/status)"
+          current_status="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ZERODOWN_DEPLOY_TOKEN" \
+            http://localhost:9000/status)"
           if python -c 'import json, sys; sys.exit(1 if json.load(sys.stdin).get("active") else 0)' <<< "$current_status"; then
             echo "A rollout is already active; refusing to interfere with it during tests."
             exit 1
           fi
 
-          curl --fail --silent --show-error -X POST http://localhost:9000/rollback >/dev/null
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer $ZERODOWN_DEPLOY_TOKEN" \
+            http://localhost:9000/rollback >/dev/null
 
           baseline=false
           for attempt in {1..30}; do
@@ -90,6 +96,7 @@ jobs:
         env:
           E2E_CONTROLLER_URL: http://localhost:9000
           E2E_GATEWAY_URL: http://localhost:8080
+          E2E_DEPLOY_TOKEN: ${{ secrets.ZERODOWN_DEPLOY_TOKEN }}
         run: '& ''${{ steps.python.outputs.python-path }}'' -m pytest -q tests'
 
       - name: Set up Docker Buildx
@@ -159,6 +166,7 @@ jobs:
           for ((attempt=1; attempt<=180; attempt++)); do
             if status_json="$(curl --fail --silent --show-error \
               --connect-timeout 10 --max-time 20 \
+              -H "Authorization: Bearer $ZERODOWN_DEPLOY_TOKEN" \
               "$ZERODOWN_URL/deployment/status")"; then
               current_id="$(python -c 'import json, sys; print(json.load(sys.stdin).get("deployment_id") or "")' <<< "$status_json")"
               phase="$(python -c 'import json, sys; print(json.load(sys.stdin).get("status") or "")' <<< "$status_json")"

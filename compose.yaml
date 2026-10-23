@@ -3,6 +3,7 @@ services:
   app_v1:
     build:
       context: ./app
+      dockerfile: dockerfile
     image: zero-downtime-demo:local
     container_name: zerodown-app-v1
     environment:
@@ -10,10 +11,15 @@ services:
     networks:
       - deployment
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   app_v2:
     build:
       context: ./app
+      dockerfile: dockerfile
     image: zero-downtime-demo:local
     container_name: zerodown-app-v2
     environment:
@@ -21,12 +27,16 @@ services:
     networks:
       - deployment
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   proxy:
     image: nginx:1.27-alpine
     container_name: zerodown-proxy
     ports:
-      - "8080:80"
+      - "${ZERODOWN_BIND_ADDRESS:-127.0.0.1}:8080:80"
     volumes:
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -44,24 +54,31 @@ services:
     container_name: zerodown-controller
 
     ports:
-      - "9000:9000"
+      - "${ZERODOWN_BIND_ADDRESS:-127.0.0.1}:9000:9000"
 
     environment:
       CONFIG: /shared/nginx.conf
       PROXY_CONTAINER: zerodown-proxy
       GATEWAY_URL: http://proxy
-      ZERODOWN_CONFIG: /controller/config/zerodown.yaml
-      ZERODOWN_PROJECT_ROOT: /workspace
+      ZERODOWN_CONFIG: ${ZERODOWN_CONFIG:-/controller/config/zerodown.yaml}
+      ZERODOWN_PROJECT_ROOT: ${ZERODOWN_PROJECT_ROOT:-/workspace}
       ZERODOWN_DOCKER_NETWORK: zerodown
       RISK_TELEMETRY_PATH: /data/risk-telemetry.jsonl
+      ZERODOWN_DEPLOYMENT_HISTORY_PATH: /data/deployment-history.jsonl
       ZERODOWN_DEPLOY_TOKEN: ${ZERODOWN_DEPLOY_TOKEN:-}
+      ZERODOWN_DEPLOY_TOKEN_FILE: ${ZERODOWN_DEPLOY_TOKEN_FILE:-/run/secrets/zerodown-deploy-token}
+      ZERODOWN_AUTH_REQUIRED: ${ZERODOWN_AUTH_REQUIRED:-true}
+      ZERODOWN_CORS_ORIGINS: ${ZERODOWN_CORS_ORIGINS:-}
+      ZERODOWN_LOG_LEVEL: ${ZERODOWN_LOG_LEVEL:-INFO}
 
     volumes:
-      - .:/workspace:ro
+      - ./app:/workspace/app:ro
+      - ./examples:/workspace/examples:ro
       - ./proxy/nginx.conf:/shared/nginx.conf
       - ./config/zerodown.yaml:/controller/config/zerodown.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data:/data
+      - ./secrets:/run/secrets:ro
 
     depends_on:
       - proxy
@@ -72,6 +89,15 @@ services:
       - deployment
 
     restart: unless-stopped
+    init: true
+    stop_grace_period: 45s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 networks:
   deployment:

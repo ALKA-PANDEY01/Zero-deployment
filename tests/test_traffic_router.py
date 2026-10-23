@@ -163,6 +163,56 @@ def test_router_restores_traffic_state_from_generated_nginx_config(tmp_path):
     }
 
 
+def test_router_can_replace_inactive_v1_target_after_v2_promotion(traffic_router):
+    traffic_router.set_percentages(0, 100)
+
+    traffic_router.set_version_target(
+        "v1",
+        "zerodown-app-v1-rollback",
+        "zerodown-app-v1-rollback",
+    )
+
+    assert traffic_router.targets["v1"] == (
+        "zerodown-app-v1-rollback",
+        "zerodown-app-v1-rollback",
+    )
+    with pytest.raises(ValueError, match="Cannot change the V2 target"):
+        traffic_router.set_version_target(
+            "v2",
+            "other-v2",
+            "other-v2",
+        )
+
+
+def test_router_restores_promoted_runtime_targets(tmp_path):
+    config_path = tmp_path / "nginx.conf"
+    config_path.write_text(
+        "upstream app_pool {\n"
+        "  server promoted-v2:8000 weight=100 max_fails=2 fail_timeout=5s;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    router = NginxTrafficRouter(
+        config_path=config_path,
+        proxy_container="zerodown-proxy",
+        v1_target="app_v1",
+        v2_target="app_v2",
+        v1_container="zerodown-app-v1",
+        v2_container="zerodown-app-v2",
+        app_port=8000,
+        client=FakeDockerClient(),
+    )
+
+    router.restore_targets(
+        {
+            "v1": ("promoted-rollback", "promoted-rollback"),
+            "v2": ("promoted-v2", "promoted-v2"),
+        }
+    )
+
+    assert router.get_traffic() == {"v1_percent": 0, "v2_percent": 100}
+
+
 def test_traffic_api_reads_and_updates_router_state(monkeypatch, tmp_path):
     monkeypatch.setattr(
         controller.app.state,

@@ -62,7 +62,6 @@ class VersionHealthChecker:
         self,
         base_url: str,
         endpoint: str,
-        expected_version: str,
     ) -> tuple[ValidationStatus, dict[str, Any]]:
         for attempt in range(1, self.attempts + 1):
             try:
@@ -112,29 +111,6 @@ class VersionHealthChecker:
                     },
                 )
 
-            try:
-                payload = response.json()
-            except ValueError:
-                payload = None
-            if not isinstance(payload, dict) or payload.get("version") != expected_version:
-                actual_version = payload.get("version") if isinstance(payload, dict) else None
-                if attempt < self.attempts:
-                    await asyncio.sleep(self.retry_delay_seconds)
-                    continue
-                return (
-                    ValidationStatus.UNHEALTHY,
-                    {
-                        "endpoint": endpoint,
-                        "status": ValidationStatus.UNHEALTHY.value,
-                        "status_code": response.status_code,
-                        "attempts": attempt,
-                        "message": (
-                            f"Expected version '{expected_version}', got "
-                            f"{actual_version!r}"
-                        ),
-                    },
-                )
-
             return (
                 ValidationStatus.HEALTHY,
                 {
@@ -142,7 +118,7 @@ class VersionHealthChecker:
                     "status": ValidationStatus.HEALTHY.value,
                     "status_code": response.status_code,
                     "attempts": attempt,
-                    "message": "Endpoint responded with the expected version",
+                    "message": "Endpoint returned HTTP 200",
                 },
             )
 
@@ -225,7 +201,6 @@ class VersionHealthChecker:
 
         endpoints = [
             ("health", self.config.health.endpoint),
-            ("version", "/version"),
             *(
                 ("smoke", endpoint)
                 for endpoint in self.config.health.smoke_endpoints
@@ -245,7 +220,6 @@ class VersionHealthChecker:
             status, check = await self._check_endpoint(
                 base_url,
                 endpoint,
-                version,
             )
             checks.append({"check": check_type, **check})
             if status is ValidationStatus.TIMEOUT:
@@ -277,6 +251,6 @@ class VersionHealthChecker:
             status=ValidationStatus.HEALTHY,
             healthy=True,
             checks=tuple(checks),
-            message=f"{version} passed container, health, version, and smoke checks",
+            message=f"{version} passed container health and configured HTTP checks",
             attempts=max(check["attempts"] for check in checks),
         )

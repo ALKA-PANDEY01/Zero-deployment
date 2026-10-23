@@ -1,0 +1,1884 @@
+[2026-10-22 21:08:51Z INFO HostContext] No proxy settings were found based on environmental variables (http_proxy/https_proxy/HTTP_PROXY/HTTPS_PROXY)
+[2026-10-22 21:08:51Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:51Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:51Z INFO HostContext] Well known config file 'Credentials': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials'
+[2026-10-22 21:08:51Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:51Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:51Z INFO HostContext] Well known config file 'Runner': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.runner'
+[2026-10-22 21:08:51Z INFO Worker] Version: 2.337.0
+[2026-10-22 21:08:51Z INFO Worker] Commit: 397b032cbf865e9c3ddfab89d533ec19325e1273
+[2026-10-22 21:08:51Z INFO Worker] Culture: en-IN
+[2026-10-22 21:08:51Z INFO Worker] UI Culture: en-US
+[2026-10-22 21:08:51Z INFO Worker] Waiting to receive the job message from the channel.
+[2026-10-22 21:08:51Z INFO ProcessChannel] Receiving message of length 31266, with hash '8e8b94fbd8718daf0aed3659c8f1d23a2684379dcde38a5e45a3d30d0aadb338'
+[2026-10-22 21:08:51Z INFO Worker] Message received.
+[2026-10-22 21:08:52Z INFO Worker] Job message:
+ {
+  "fileTable": [
+    ".github/workflows/deploy.yml"
+  ],
+  "mask": [
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    },
+    {
+      "type": "regex",
+      "value": "***"
+    }
+  ],
+  "steps": [
+    {
+      "type": "action",
+      "reference": {
+        "type": "repository",
+        "name": "actions/checkout",
+        "ref": "v4",
+        "repositoryType": "GitHub"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 22,
+        "col": 15,
+        "lit": "Checkout repository"
+      },
+      "contextName": "__actions_checkout",
+      "condition": "success()",
+      "id": "5d7cbfd3-6127-4c0e-b3bc-a2a46e4b742c",
+      "name": "__actions_checkout"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "repository",
+        "name": "actions/setup-python",
+        "ref": "v5",
+        "repositoryType": "GitHub"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 25,
+        "col": 15,
+        "lit": "Set up Python"
+      },
+      "contextName": "python",
+      "inputs": {
+        "type": 2,
+        "file": 1,
+        "line": 29,
+        "col": 11,
+        "map": [
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 29,
+              "col": 11,
+              "lit": "python-version"
+            },
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 29,
+              "col": 27,
+              "lit": "3.12"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "907bd67b-6b36-4fc1-a767-f83f2aba2abf",
+      "name": "python"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "script"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 31,
+        "col": 15,
+        "lit": "Verify selected Python"
+      },
+      "contextName": "__run",
+      "inputs": {
+        "type": 2,
+        "map": [
+          {
+            "key": "script",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 32,
+              "col": 14,
+              "lit": "python --version"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "28419268-7e67-45e3-ad5a-8d23fdeeb233",
+      "name": "__run"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "script"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 34,
+        "col": 15,
+        "lit": "Install dependencies"
+      },
+      "contextName": "__run_2",
+      "inputs": {
+        "type": 2,
+        "map": [
+          {
+            "key": "script",
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 35,
+              "col": 14,
+              "expr": "format('& ''{0}'' -m pip install --upgrade pip\n& ''{1}'' -m pip install -r app/requirements.txt\n& ''{2}'' -m pip install -r controller/requirements.txt\n& ''{3}'' -m pip install -r tests/requirements.txt\n', steps.python.outputs.python-path, steps.python.outputs.python-path, steps.python.outputs.python-path, steps.python.outputs.python-path)"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "810abdd9-6a1d-44ea-ab8f-693c89135c42",
+      "name": "__run_2"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "script"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 41,
+        "col": 15,
+        "lit": "Validate Compose configuration"
+      },
+      "contextName": "__run_3",
+      "inputs": {
+        "type": 2,
+        "map": [
+          {
+            "key": "script",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 42,
+              "col": 14,
+              "lit": "docker compose config --quiet"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "362574e5-2f4a-4cfd-9c28-dce9a1e47401",
+      "name": "__run_3"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "script"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 44,
+        "col": 15,
+        "lit": "Check local ZeroDown and restore V1 test baseline"
+      },
+      "contextName": "__run_4",
+      "inputs": {
+        "type": 2,
+        "map": [
+          {
+            "key": "script",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 46,
+              "col": 14,
+              "lit": "set -euo pipefail\n\nready=false\nfor attempt in {1..60}; do\n  if curl --fail --silent --show-error --max-time 5 ***/health >/dev/null \\\n    && curl --fail --silent --show-error --max-time 5 http://localhost:8080/health >/dev/null; then\n    ready=true\n    break\n  fi\n  sleep 2\ndone\n\nif [[ \"$ready\" != true ]]; then\n  echo \"Local ZeroDown is not ready. Start it on this PC with: docker compose up -d\"\n  docker compose ps\n  exit 1\nfi\n\ncurrent_status=\"$(curl --fail --silent --show-error ***/status)\"\nif python -c 'import json, sys; sys.exit(1 if json.load(sys.stdin).get(\"active\") else 0)' <<< \"$current_status\"; then\n  echo \"A rollout is already active; refusing to interfere with it during tests.\"\n  exit 1\nfi\n\ncurl --fail --silent --show-error -X POST ***/rollback >/dev/null\n\nbaseline=false\nfor attempt in {1..30}; do\n  if response=\"$(curl --fail --silent --show-error --max-time 5 http://localhost:8080/health)\" \\\n    && python -c 'import json, sys; sys.exit(0 if json.load(sys.stdin).get(\"version\") == \"v1\" else 1)' <<< \"$response\"; then\n    baseline=true\n    break\n  fi\n  sleep 1\ndone\n\nif [[ \"$baseline\" != true ]]; then\n  echo \"The public gateway did not return V1 after restoring the test baseline.\"\n  docker compose ps\n  exit 1\nfi\n"
+            }
+          },
+          {
+            "key": "shell",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 45,
+              "col": 16,
+              "lit": "bash"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "06cf8e22-0758-4a9e-9667-5f8fe647b3e4",
+      "name": "__run_4"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "script"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 89,
+        "col": 15,
+        "lit": "Run tests"
+      },
+      "contextName": "__run_5",
+      "environment": {
+        "type": 2,
+        "file": 1,
+        "line": 91,
+        "col": 11,
+        "map": [
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 91,
+              "col": 11,
+              "lit": "E2E_CONTROLLER_URL"
+            },
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 91,
+              "col": 31,
+              "lit": "***"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 92,
+              "col": 11,
+              "lit": "E2E_GATEWAY_URL"
+            },
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 92,
+              "col": 28,
+              "lit": "http://localhost:8080"
+            }
+          }
+        ]
+      },
+      "inputs": {
+        "type": 2,
+        "map": [
+          {
+            "key": "script",
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 93,
+              "col": 14,
+              "expr": "format('& ''{0}'' -m pytest -q tests', steps.python.outputs.python-path)"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "1bebb376-503f-469c-8c22-a62ea9006c34",
+      "name": "__run_5"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "repository",
+        "name": "docker/setup-buildx-action",
+        "ref": "v3",
+        "repositoryType": "GitHub"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 95,
+        "col": 15,
+        "lit": "Set up Docker Buildx"
+      },
+      "contextName": "__docker_setup-buildx-action",
+      "condition": "success()",
+      "id": "8c60fd95-5a28-4f10-963c-bec3b7a96647",
+      "name": "__docker_setup-buildx-action"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "repository",
+        "name": "docker/login-action",
+        "ref": "v3",
+        "repositoryType": "GitHub"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 98,
+        "col": 15,
+        "lit": "Log in to GitHub Container Registry"
+      },
+      "contextName": "__docker_login-action",
+      "inputs": {
+        "type": 2,
+        "file": 1,
+        "line": 101,
+        "col": 11,
+        "map": [
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 101,
+              "col": 11,
+              "lit": "registry"
+            },
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 101,
+              "col": 21,
+              "lit": "ghcr.io"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 102,
+              "col": 11,
+              "lit": "username"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 102,
+              "col": 21,
+              "expr": "github.actor"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 103,
+              "col": 11,
+              "lit": "password"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 103,
+              "col": 21,
+              "expr": "secrets.GITHUB_TOKEN"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "22a41868-9edf-4012-ae54-09c91eea8274",
+      "name": "__docker_login-action"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "script"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 105,
+        "col": 15,
+        "lit": "Identify immutable application image"
+      },
+      "contextName": "image",
+      "inputs": {
+        "type": 2,
+        "map": [
+          {
+            "key": "script",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 108,
+              "col": 14,
+              "lit": "echo \"ref=ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}\" >> \"$GITHUB_OUTPUT\"\n"
+            }
+          },
+          {
+            "key": "shell",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 107,
+              "col": 16,
+              "lit": "bash"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "778ed656-2a7c-4550-88ba-c83a101a9949",
+      "name": "image"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "repository",
+        "name": "docker/build-push-action",
+        "ref": "v6",
+        "repositoryType": "GitHub"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 111,
+        "col": 15,
+        "lit": "Build and publish application image"
+      },
+      "contextName": "__docker_build-push-action",
+      "inputs": {
+        "type": 2,
+        "file": 1,
+        "line": 114,
+        "col": 11,
+        "map": [
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 114,
+              "col": 11,
+              "lit": "context"
+            },
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 114,
+              "col": 20,
+              "lit": "./app"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 115,
+              "col": 11,
+              "lit": "push"
+            },
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 115,
+              "col": 17,
+              "lit": "true"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 116,
+              "col": 11,
+              "lit": "tags"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 116,
+              "col": 17,
+              "expr": "steps.image.outputs.ref"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "90da9786-a3e2-4089-85c6-9336c02ea4ca",
+      "name": "__docker_build-push-action"
+    },
+    {
+      "type": "action",
+      "reference": {
+        "type": "script"
+      },
+      "displayNameToken": {
+        "type": 0,
+        "file": 1,
+        "line": 118,
+        "col": 15,
+        "lit": "Trigger ZeroDown and wait for rollout"
+      },
+      "contextName": "__run_6",
+      "environment": {
+        "type": 2,
+        "file": 1,
+        "line": 121,
+        "col": 11,
+        "map": [
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 121,
+              "col": 11,
+              "lit": "ZERODOWN_URL"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 121,
+              "col": 25,
+              "expr": "secrets.ZERODOWN_URL"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 122,
+              "col": 11,
+              "lit": "ZERODOWN_DEPLOY_TOKEN"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 122,
+              "col": 34,
+              "expr": "secrets.ZERODOWN_DEPLOY_TOKEN"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 123,
+              "col": 11,
+              "lit": "GHCR_USERNAME"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 123,
+              "col": 26,
+              "expr": "github.actor"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 124,
+              "col": 11,
+              "lit": "GHCR_TOKEN"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 124,
+              "col": 23,
+              "expr": "secrets.GITHUB_TOKEN"
+            }
+          },
+          {
+            "key": {
+              "type": 0,
+              "file": 1,
+              "line": 125,
+              "col": 11,
+              "lit": "IMAGE_REF"
+            },
+            "value": {
+              "type": 3,
+              "file": 1,
+              "line": 125,
+              "col": 22,
+              "expr": "steps.image.outputs.ref"
+            }
+          }
+        ]
+      },
+      "inputs": {
+        "type": 2,
+        "map": [
+          {
+            "key": "script",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 126,
+              "col": 14,
+              "lit": "set -euo pipefail\n\nif [[ -z \"$ZERODOWN_URL\" || -z \"$ZERODOWN_DEPLOY_TOKEN\" ]]; then\n  echo \"Set the ZERODOWN_URL and ZERODOWN_DEPLOY_TOKEN repository secrets.\"\n  exit 1\nfi\nif [[ \"$ZERODOWN_URL\" != https://* \\\n  && \"$ZERODOWN_URL\" != http://localhost:* \\\n  && \"$ZERODOWN_URL\" != http://127.0.0.1:* ]]; then\n  echo \"Use HTTPS for remote controllers; HTTP is allowed only for localhost.\"\n  exit 1\nfi\nZERODOWN_URL=\"${ZERODOWN_URL%/}\"\n\nrequest_file=\"$(mktemp)\"\ntrap 'rm -f \"$request_file\"' EXIT\npython -c 'import json, os; print(json.dumps({\"image\": os.environ[\"IMAGE_REF\"], \"registry_username\": os.environ[\"GHCR_USERNAME\"], \"registry_token\": os.environ[\"GHCR_TOKEN\"]}))' > \"$request_file\"\n\naccepted=\"$(curl --fail --silent --show-error \\\n  --connect-timeout 10 --max-time 30 \\\n  -X POST \"$ZERODOWN_URL/api/v1/deploy\" \\\n  -H \"Authorization: ***" \\\n  -H \"Content-Type: application/json\" \\\n  --data-binary \"@$request_file\")\"\nif ! python -c 'import json, sys; data=json.load(sys.stdin); sys.exit(0 if data.get(\"accepted\") is True and isinstance(data.get(\"deployment_id\"), str) else 1)' <<< \"$accepted\"; then\n  echo \"ZeroDown did not accept the deployment request.\"\n  exit 1\nfi\n\ndeployment_id=\"$(python -c 'import json, sys; print(json.load(sys.stdin)[\"deployment_id\"])' <<< \"$accepted\")\"\necho \"ZeroDown accepted deployment $deployment_id for image $IMAGE_REF.\"\n\nfor ((attempt=1; attempt<=180; attempt++)); do\n  if status_json=\"$(curl --fail --silent --show-error \\\n    --connect-timeout 10 --max-time 20 \\\n    \"$ZERODOWN_URL/deployment/status\")\"; then\n    current_id=\"$(python -c 'import json, sys; print(json.load(sys.stdin).get(\"deployment_id\") or \"\")' <<< \"$status_json\")\"\n    phase=\"$(python -c 'import json, sys; print(json.load(sys.stdin).get(\"status\") or \"\")' <<< \"$status_json\")\"\n\n    if [[ \"$current_id\" == \"$deployment_id\" ]]; then\n      case \"$phase\" in\n        SUCCESS)\n          echo \"ZeroDown rollout completed successfully.\"\n          exit 0\n          ;;\n        ROLLBACK|FAILED)\n          echo \"ZeroDown rollout ended with phase $phase:\"\n          python -c 'import json, sys; d=json.load(sys.stdin); print(json.dumps({k:d.get(k) for k in (\"status\", \"message\", \"rollback\")}))' <<< \"$status_json\"\n          exit 1\n          ;;\n      esac\n    fi\n  fi\n  sleep 5\ndone\n\necho \"Timed out waiting for ZeroDown deployment $deployment_id.\"\nexit 1\n"
+            }
+          },
+          {
+            "key": "shell",
+            "value": {
+              "type": 0,
+              "file": 1,
+              "line": 119,
+              "col": 16,
+              "lit": "bash"
+            }
+          }
+        ]
+      },
+      "condition": "success()",
+      "id": "a8544e1f-3e56-468f-8683-a3d1fc338742",
+      "name": "__run_6"
+    }
+  ],
+  "variables": {
+    "Actions.EnableHttpRedirects": {
+      "value": "true"
+    },
+    "DistributedTask.AddWarningToNode12Action": {
+      "value": "true"
+    },
+    "DistributedTask.AddWarningToNode16Action": {
+      "value": "true"
+    },
+    "DistributedTask.AllowRunnerContainerHooks": {
+      "value": "true"
+    },
+    "DistributedTask.DeprecateStepOutputCommands": {
+      "value": "true"
+    },
+    "DistributedTask.DetailUntarFailure": {
+      "value": "true"
+    },
+    "DistributedTask.EnableCompositeActions": {
+      "value": "true"
+    },
+    "DistributedTask.EnableJobServerQueueTelemetry": {
+      "value": "true"
+    },
+    "DistributedTask.EnhancedAnnotations": {
+      "value": "true"
+    },
+    "DistributedTask.ForceGithubJavascriptActionsToNode16": {
+      "value": "true"
+    },
+    "DistributedTask.ForceGithubJavascriptActionsToNode20": {
+      "value": "true"
+    },
+    "DistributedTask.LogTemplateErrorsAsDebugMessages": {
+      "value": "true"
+    },
+    "DistributedTask.MarkJobAsFailedOnWorkerCrash": {
+      "value": "true"
+    },
+    "DistributedTask.NewActionMetadata": {
+      "value": "true"
+    },
+    "DistributedTask.UploadStepSummary": {
+      "value": "true"
+    },
+    "DistributedTask.UseActionArchiveCache": {
+      "value": "true"
+    },
+    "DistributedTask.UseWhich2": {
+      "value": "true"
+    },
+    "RunService.FixEmbeddedIssues": {
+      "value": "true"
+    },
+    "ZERODOWN_DEPLOY_TOKEN": {
+      "value": "***",
+      "isSecret": true
+    },
+    "ZERODOWN_URL": {
+      "value": "***",
+      "isSecret": true
+    },
+    "actions.runner.requirenode24": {
+      "value": "true"
+    },
+    "actions.runner.usenode24bydefault": {
+      "value": "true"
+    },
+    "actions.runner.warnonnode20": {
+      "value": "true"
+    },
+    "actions_add_check_run_id_to_job_context": {
+      "value": "true"
+    },
+    "actions_batch_action_resolution": {
+      "value": "false"
+    },
+    "actions_cache_mode": {
+      "value": "write"
+    },
+    "actions_container_action_runner_temp": {
+      "value": "true"
+    },
+    "actions_display_helpful_actions_download_errors": {
+      "value": "true"
+    },
+    "actions_runner_allow_artifacts_file": {
+      "value": "true"
+    },
+    "actions_runner_compare_workflow_parser": {
+      "value": "false"
+    },
+    "actions_runner_deprecate_linux_arm32": {
+      "value": "true"
+    },
+    "actions_runner_emit_composite_markers": {
+      "value": "true"
+    },
+    "actions_runner_kill_linux_arm32": {
+      "value": "true"
+    },
+    "actions_runner_node20_removal_date": {
+      "value": "September 23rd, 2026"
+    },
+    "actions_runner_node24_default_date": {
+      "value": "June 16th, 2026"
+    },
+    "actions_self_repository": {
+      "value": "true"
+    },
+    "actions_service_container_command": {
+      "value": "true"
+    },
+    "actions_set_orchestration_id_env_for_actions": {
+      "value": "true"
+    },
+    "actions_skip_retry_complete_job_upon_known_errors": {
+      "value": "true"
+    },
+    "actions_snapshot_preflight_hosted_runner_check": {
+      "value": "false"
+    },
+    "actions_snapshot_preflight_image_gen_pool_check": {
+      "value": "false"
+    },
+    "actions_use_bearer_token_for_codeload": {
+      "value": "false"
+    },
+    "actions_uses_cache_service_v2": {
+      "value": "true"
+    },
+    "github_token": {
+      "value": "***",
+      "isSecret": true
+    },
+    "system.from_run_service": {
+      "value": "true"
+    },
+    "system.github.job": {
+      "value": "test-build-deploy"
+    },
+    "system.github.launch_endpoint": {
+      "value": "https://launch.actions.githubusercontent.com"
+    },
+    "system.github.results_endpoint": {
+      "value": "https://results-receiver.actions.githubusercontent.com/"
+    },
+    "system.github.results_upload_with_sdk": {
+      "value": "true"
+    },
+    "system.github.token": {
+      "value": "***",
+      "isSecret": true
+    },
+    "system.github.token.permissions": {
+      "value": "{\"Contents\":\"read\",\"Metadata\":\"read\",\"Packages\":\"write\"}"
+    },
+    "system.orchestrationId": {
+      "value": "78057323-ab0f-472c-9f54-27ab6930cdc5.test-build-deploy.__default"
+    },
+    "system.phaseDisplayName": {
+      "value": "Test, publish image, and request rollout"
+    },
+    "system.runner.lowdiskspacethreshold": {
+      "value": "100"
+    },
+    "system.runnerEnvironment": {
+      "value": "self-hosted"
+    },
+    "system.runnerGroupName": {
+      "value": "Default"
+    }
+  },
+  "messageType": "RunnerJobRequest",
+  "plan": {
+    "scopeIdentifier": "00000000-0000-0000-0000-000000000000",
+    "planType": "actions",
+    "version": 0,
+    "planId": "78057323-ab0f-472c-9f54-27ab6930cdc5",
+    "planGroup": null,
+    "artifactUri": null,
+    "artifactLocation": null,
+    "definition": null,
+    "owner": null
+  },
+  "timeline": {
+    "id": "78057323-ab0f-472c-9f54-27ab6930cdc5",
+    "changeId": 0,
+    "location": null
+  },
+  "jobId": "1a8f41ca-6322-5414-93f0-7f00438a1ec8",
+  "jobDisplayName": "Test, publish image, and request rollout",
+  "jobName": "__default",
+  "requestId": 0,
+  "lockedUntil": "0001-01-01T00:00:00",
+  "resources": {
+    "endpoints": [
+      {
+        "data": {
+          "ServerId": "",
+          "ServerName": "",
+          "CacheServerUrl": "https://artifactcache.actions.githubusercontent.com/7AuX2pypzlPXsE83ptP4zWxQ3GvUoLNCJp6z9ocP64I8v2lMGV/",
+          "FeedStreamUrl": "wss://results-receiver.actions.githubusercontent.com/_ws/ingest.sock",
+          "ResultsServiceUrl": "https://results-receiver.actions.githubusercontent.com/",
+          "PipelinesServiceUrl": "https://pipelinesghubeus14.actions.githubusercontent.com/7AuX2pypzlPXsE83ptP4zWxQ3GvUoLNCJp6z9ocP64I8v2lMGV/",
+          "GenerateIdTokenUrl": "",
+          "ConnectivityChecks": "[\"https://broker.actions.githubusercontent.com/health\",\"https://token.actions.githubusercontent.com/ready\",\"https://run.actions.githubusercontent.com/health\"]",
+          "ConnectivityAndDNSChecks": ""
+        },
+        "name": "SystemVssConnection",
+        "url": "https://run-actions-3-azure-eastus.actions.githubusercontent.com/291/",
+        "authorization": {
+          "parameters": {
+            "AccessToken": "***"
+          },
+          "scheme": "OAuth"
+        },
+        "isShared": false,
+        "isReady": true
+      }
+    ]
+  },
+  "contextData": {
+    "github": {
+      "t": 2,
+      "d": [
+        {
+          "k": "ref",
+          "v": "refs/heads/main"
+        },
+        {
+          "k": "sha",
+          "v": "cb812c07b9f022aee27361e268b281e3acfe7f39"
+        },
+        {
+          "k": "repository",
+          "v": "ALKA-PANDEY01/Zero-deployment"
+        },
+        {
+          "k": "repository_owner",
+          "v": "ALKA-PANDEY01"
+        },
+        {
+          "k": "repository_owner_id",
+          "v": "185383961"
+        },
+        {
+          "k": "repositoryUrl",
+          "v": "git://github.com/ALKA-PANDEY01/Zero-deployment.git"
+        },
+        {
+          "k": "run_id",
+          "v": "39854740251"
+        },
+        {
+          "k": "run_number",
+          "v": "19"
+        },
+        {
+          "k": "retention_days",
+          "v": "90"
+        },
+        {
+          "k": "run_attempt",
+          "v": "1"
+        },
+        {
+          "k": "artifact_cache_size_limit",
+          "v": "10"
+        },
+        {
+          "k": "repository_visibility",
+          "v": "public"
+        },
+        {
+          "k": "actor_id",
+          "v": "185383961"
+        },
+        {
+          "k": "actor",
+          "v": "ALKA-PANDEY01"
+        },
+        {
+          "k": "workflow",
+          "v": "Test and deploy with ZeroDown"
+        },
+        {
+          "k": "head_ref",
+          "v": ""
+        },
+        {
+          "k": "base_ref",
+          "v": ""
+        },
+        {
+          "k": "event_name",
+          "v": "workflow_dispatch"
+        },
+        {
+          "k": "server_url",
+          "v": "https://github.com"
+        },
+        {
+          "k": "api_url",
+          "v": "https://api.github.com"
+        },
+        {
+          "k": "graphql_url",
+          "v": "https://api.github.com/graphql"
+        },
+        {
+          "k": "ref_name",
+          "v": "main"
+        },
+        {
+          "k": "ref_protected",
+          "v": false
+        },
+        {
+          "k": "ref_type",
+          "v": "branch"
+        },
+        {
+          "k": "secret_source",
+          "v": "Actions"
+        },
+        {
+          "k": "event",
+          "v": {
+            "t": 2,
+            "d": [
+              {
+                "k": "inputs",
+                "v": null
+              },
+              {
+                "k": "ref",
+                "v": "refs/heads/main"
+              },
+              {
+                "k": "repository",
+                "v": {
+                  "t": 2,
+                  "d": [
+                    {
+                      "k": "id",
+                      "v": 1425740563.0
+                    },
+                    {
+                      "k": "node_id",
+                      "v": "R_kgDOVPsTEw"
+                    },
+                    {
+                      "k": "name",
+                      "v": "Zero-deployment"
+                    },
+                    {
+                      "k": "full_name",
+                      "v": "ALKA-PANDEY01/Zero-deployment"
+                    },
+                    {
+                      "k": "private",
+                      "v": false
+                    },
+                    {
+                      "k": "owner",
+                      "v": {
+                        "t": 2,
+                        "d": [
+                          {
+                            "k": "login",
+                            "v": "ALKA-PANDEY01"
+                          },
+                          {
+                            "k": "id",
+                            "v": 185383961.0
+                          },
+                          {
+                            "k": "node_id",
+                            "v": "U_kgDOCwy8GQ"
+                          },
+                          {
+                            "k": "avatar_url",
+                            "v": "https://avatars.githubusercontent.com/u/185383961?v=4"
+                          },
+                          {
+                            "k": "gravatar_id",
+                            "v": ""
+                          },
+                          {
+                            "k": "url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01"
+                          },
+                          {
+                            "k": "html_url",
+                            "v": "https://github.com/ALKA-PANDEY01"
+                          },
+                          {
+                            "k": "followers_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/followers"
+                          },
+                          {
+                            "k": "following_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/following{/other_user}"
+                          },
+                          {
+                            "k": "gists_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/gists{/gist_id}"
+                          },
+                          {
+                            "k": "starred_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/starred{/owner}{/repo}"
+                          },
+                          {
+                            "k": "subscriptions_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/subscriptions"
+                          },
+                          {
+                            "k": "organizations_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/orgs"
+                          },
+                          {
+                            "k": "repos_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/repos"
+                          },
+                          {
+                            "k": "events_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/events{/privacy}"
+                          },
+                          {
+                            "k": "received_events_url",
+                            "v": "https://api.github.com/users/ALKA-PANDEY01/received_events"
+                          },
+                          {
+                            "k": "type",
+                            "v": "User"
+                          },
+                          {
+                            "k": "user_view_type",
+                            "v": "public"
+                          },
+                          {
+                            "k": "site_admin",
+                            "v": false
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "k": "html_url",
+                      "v": "https://github.com/ALKA-PANDEY01/Zero-deployment"
+                    },
+                    {
+                      "k": "description",
+                      "v": "Zero-Downtime Deployment Pipeline with Canary Release & Automatic Rollback"
+                    },
+                    {
+                      "k": "fork",
+                      "v": false
+                    },
+                    {
+                      "k": "url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment"
+                    },
+                    {
+                      "k": "forks_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/forks"
+                    },
+                    {
+                      "k": "keys_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/keys{/key_id}"
+                    },
+                    {
+                      "k": "collaborators_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/collaborators{/collaborator}"
+                    },
+                    {
+                      "k": "teams_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/teams"
+                    },
+                    {
+                      "k": "hooks_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/hooks"
+                    },
+                    {
+                      "k": "issue_events_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/issues/events{/number}"
+                    },
+                    {
+                      "k": "events_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/events"
+                    },
+                    {
+                      "k": "assignees_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/assignees{/user}"
+                    },
+                    {
+                      "k": "branches_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/branches{/branch}"
+                    },
+                    {
+                      "k": "tags_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/tags"
+                    },
+                    {
+                      "k": "blobs_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/git/blobs{/sha}"
+                    },
+                    {
+                      "k": "git_tags_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/git/tags{/sha}"
+                    },
+                    {
+                      "k": "git_refs_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/git/refs{/sha}"
+                    },
+                    {
+                      "k": "trees_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/git/trees{/sha}"
+                    },
+                    {
+                      "k": "statuses_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/statuses/{sha}"
+                    },
+                    {
+                      "k": "languages_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/languages"
+                    },
+                    {
+                      "k": "stargazers_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/stargazers"
+                    },
+                    {
+                      "k": "contributors_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/contributors"
+                    },
+                    {
+                      "k": "subscribers_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/subscribers"
+                    },
+                    {
+                      "k": "subscription_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/subscription"
+                    },
+                    {
+                      "k": "commits_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/commits{/sha}"
+                    },
+                    {
+                      "k": "git_commits_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/git/commits{/sha}"
+                    },
+                    {
+                      "k": "comments_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/comments{/number}"
+                    },
+                    {
+                      "k": "issue_comment_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/issues/comments{/number}"
+                    },
+                    {
+                      "k": "contents_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/contents/{+path}"
+                    },
+                    {
+                      "k": "compare_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/compare/{base}...{head}"
+                    },
+                    {
+                      "k": "merges_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/merges"
+                    },
+                    {
+                      "k": "archive_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/{archive_format}{/ref}"
+                    },
+                    {
+                      "k": "downloads_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/downloads"
+                    },
+                    {
+                      "k": "issues_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/issues{/number}"
+                    },
+                    {
+                      "k": "pulls_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/pulls{/number}"
+                    },
+                    {
+                      "k": "milestones_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/milestones{/number}"
+                    },
+                    {
+                      "k": "notifications_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/notifications{?since,all,participating}"
+                    },
+                    {
+                      "k": "labels_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/labels{/name}"
+                    },
+                    {
+                      "k": "releases_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/releases{/id}"
+                    },
+                    {
+                      "k": "deployments_url",
+                      "v": "https://api.github.com/repos/ALKA-PANDEY01/Zero-deployment/deployments"
+                    },
+                    {
+                      "k": "created_at",
+                      "v": "2026-10-19T14:29:50Z"
+                    },
+                    {
+                      "k": "updated_at",
+                      "v": "2026-10-22T21:05:07Z"
+                    },
+                    {
+                      "k": "pushed_at",
+                      "v": "2026-10-22T21:04:33Z"
+                    },
+                    {
+                      "k": "git_url",
+                      "v": "git://github.com/ALKA-PANDEY01/Zero-deployment.git"
+                    },
+                    {
+                      "k": "ssh_url",
+                      "v": "git@github.com:ALKA-PANDEY01/Zero-deployment.git"
+                    },
+                    {
+                      "k": "clone_url",
+                      "v": "https://github.com/ALKA-PANDEY01/Zero-deployment.git"
+                    },
+                    {
+                      "k": "svn_url",
+                      "v": "https://github.com/ALKA-PANDEY01/Zero-deployment"
+                    },
+                    {
+                      "k": "homepage",
+                      "v": null
+                    },
+                    {
+                      "k": "size",
+                      "v": 190311.0
+                    },
+                    {
+                      "k": "stargazers_count",
+                      "v": 0.0
+                    },
+                    {
+                      "k": "watchers_count",
+                      "v": 0.0
+                    },
+                    {
+                      "k": "language",
+                      "v": "HTML"
+                    },
+                    {
+                      "k": "has_issues",
+                      "v": true
+                    },
+                    {
+                      "k": "has_projects",
+                      "v": true
+                    },
+                    {
+                      "k": "has_downloads",
+                      "v": false
+                    },
+                    {
+                      "k": "has_wiki",
+                      "v": true
+                    },
+                    {
+                      "k": "has_pages",
+                      "v": false
+                    },
+                    {
+                      "k": "has_discussions",
+                      "v": false
+                    },
+                    {
+                      "k": "forks_count",
+                      "v": 0.0
+                    },
+                    {
+                      "k": "mirror_url",
+                      "v": null
+                    },
+                    {
+                      "k": "archived",
+                      "v": false
+                    },
+                    {
+                      "k": "disabled",
+                      "v": false
+                    },
+                    {
+                      "k": "open_issues_count",
+                      "v": 0.0
+                    },
+                    {
+                      "k": "license",
+                      "v": null
+                    },
+                    {
+                      "k": "allow_forking",
+                      "v": true
+                    },
+                    {
+                      "k": "is_template",
+                      "v": false
+                    },
+                    {
+                      "k": "web_commit_signoff_required",
+                      "v": false
+                    },
+                    {
+                      "k": "has_pull_requests",
+                      "v": true
+                    },
+                    {
+                      "k": "pull_request_creation_policy",
+                      "v": "all"
+                    },
+                    {
+                      "k": "topics",
+                      "v": {
+                        "t": 1
+                      }
+                    },
+                    {
+                      "k": "visibility",
+                      "v": "public"
+                    },
+                    {
+                      "k": "forks",
+                      "v": 0.0
+                    },
+                    {
+                      "k": "open_issues",
+                      "v": 0.0
+                    },
+                    {
+                      "k": "watchers",
+                      "v": 0.0
+                    },
+                    {
+                      "k": "default_branch",
+                      "v": "main"
+                    }
+                  ]
+                }
+              },
+              {
+                "k": "sender",
+                "v": {
+                  "t": 2,
+                  "d": [
+                    {
+                      "k": "login",
+                      "v": "ALKA-PANDEY01"
+                    },
+                    {
+                      "k": "id",
+                      "v": 185383961.0
+                    },
+                    {
+                      "k": "node_id",
+                      "v": "U_kgDOCwy8GQ"
+                    },
+                    {
+                      "k": "avatar_url",
+                      "v": "https://avatars.githubusercontent.com/u/185383961?v=4"
+                    },
+                    {
+                      "k": "gravatar_id",
+                      "v": ""
+                    },
+                    {
+                      "k": "url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01"
+                    },
+                    {
+                      "k": "html_url",
+                      "v": "https://github.com/ALKA-PANDEY01"
+                    },
+                    {
+                      "k": "followers_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/followers"
+                    },
+                    {
+                      "k": "following_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/following{/other_user}"
+                    },
+                    {
+                      "k": "gists_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/gists{/gist_id}"
+                    },
+                    {
+                      "k": "starred_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/starred{/owner}{/repo}"
+                    },
+                    {
+                      "k": "subscriptions_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/subscriptions"
+                    },
+                    {
+                      "k": "organizations_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/orgs"
+                    },
+                    {
+                      "k": "repos_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/repos"
+                    },
+                    {
+                      "k": "events_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/events{/privacy}"
+                    },
+                    {
+                      "k": "received_events_url",
+                      "v": "https://api.github.com/users/ALKA-PANDEY01/received_events"
+                    },
+                    {
+                      "k": "type",
+                      "v": "User"
+                    },
+                    {
+                      "k": "user_view_type",
+                      "v": "public"
+                    },
+                    {
+                      "k": "site_admin",
+                      "v": false
+                    }
+                  ]
+                }
+              },
+              {
+                "k": "workflow",
+                "v": ".github/workflows/deploy.yml"
+              }
+            ]
+          }
+        },
+        {
+          "k": "workflow_ref",
+          "v": "ALKA-PANDEY01/Zero-deployment/.github/workflows/deploy.yml@refs/heads/main"
+        },
+        {
+          "k": "workflow_sha",
+          "v": "cb812c07b9f022aee27361e268b281e3acfe7f39"
+        },
+        {
+          "k": "repository_id",
+          "v": "1425740563"
+        },
+        {
+          "k": "triggering_actor",
+          "v": "ALKA-PANDEY01"
+        }
+      ]
+    },
+    "inputs": {
+      "t": 2
+    },
+    "job": {
+      "t": 2,
+      "d": [
+        {
+          "k": "check_run_id",
+          "v": 120090209373.0
+        },
+        {
+          "k": "workflow_ref",
+          "v": "ALKA-PANDEY01/Zero-deployment/.github/workflows/deploy.yml@refs/heads/main"
+        },
+        {
+          "k": "workflow_sha",
+          "v": "cb812c07b9f022aee27361e268b281e3acfe7f39"
+        },
+        {
+          "k": "workflow_repository",
+          "v": "ALKA-PANDEY01/Zero-deployment"
+        },
+        {
+          "k": "workflow_file_path",
+          "v": ".github/workflows/deploy.yml"
+        }
+      ]
+    },
+    "matrix": null,
+    "needs": {
+      "t": 2
+    },
+    "strategy": {
+      "t": 2,
+      "d": [
+        {
+          "k": "fail-fast",
+          "v": true
+        },
+        {
+          "k": "job-index",
+          "v": 0.0
+        },
+        {
+          "k": "job-total",
+          "v": 1.0
+        },
+        {
+          "k": "max-parallel",
+          "v": 1.0
+        }
+      ]
+    },
+    "vars": {
+      "t": 2
+    }
+  },
+  "billingOwnerId": "U_kgDOCwy8GQ"
+}
+[2026-10-22 21:08:52Z INFO JobRunner] Job ID 1a8f41ca-6322-5414-93f0-7f00438a1ec8
+[2026-10-22 21:08:52Z INFO ConfigurationStore] currentAssemblyLocation: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin\Runner.Worker.dll
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO ConfigurationStore] binPath: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO ConfigurationStore] RootFolder: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known config file 'Runner': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.runner'
+[2026-10-22 21:08:52Z INFO ConfigurationStore] ConfigFilePath: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.runner
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known config file 'MigratedRunner': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.runner_migrated'
+[2026-10-22 21:08:52Z INFO ConfigurationStore] MigratedConfigFilePath: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.runner_migrated
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known config file 'Credentials': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials'
+[2026-10-22 21:08:52Z INFO ConfigurationStore] CredFilePath: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known config file 'MigratedCredentials': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_migrated'
+[2026-10-22 21:08:52Z INFO ConfigurationStore] MigratedCredFilePath: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials_migrated
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known config file 'Service': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.service'
+[2026-10-22 21:08:52Z INFO ConfigurationStore] ServiceConfigFilePath: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.service
+[2026-10-22 21:08:52Z INFO ConfigurationStore] Read setting file: 409 chars
+[2026-10-22 21:08:52Z INFO JobRunner] Initializing launch client
+[2026-10-22 21:08:52Z INFO JobServerQueue] Initializing results client
+[2026-10-22 21:08:52Z INFO ResultServer] Creating websocket client ...wss://results-receiver.actions.githubusercontent.com/_ws/ingest.sock
+[2026-10-22 21:08:52Z INFO ResultServer] Attempting to start websocket client with delay 00:00:00.
+[2026-10-22 21:08:52Z INFO JobServerQueue] Start process web console line queue.
+[2026-10-22 21:08:52Z INFO JobServerQueue] Start process file upload queue.
+[2026-10-22 21:08:52Z INFO JobServerQueue] Start results file upload queue.
+[2026-10-22 21:08:52Z INFO JobServerQueue] Starting results-based upload queue...
+[2026-10-22 21:08:52Z INFO JobServerQueue] Start process timeline update queue.
+[2026-10-22 21:08:52Z INFO ExecutionContext] Initializing Job context
+[2026-10-22 21:08:52Z INFO ExecutionContext] Initialize GitHub context
+[2026-10-22 21:08:52Z INFO ExecutionContext] Initialize Env context
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Diag': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Diag': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag'
+[2026-10-22 21:08:52Z INFO JobRunner] Starting the job execution context.
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO JobRunner] Validating directory permissions for: 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Tools': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_tool'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Temp': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_temp'
+[2026-10-22 21:08:52Z INFO JobRunner] Getting job extension.
+[2026-10-22 21:08:52Z INFO JobRunner] Initialize job. Getting all job steps.
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Diag': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Diag': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known config file 'Credentials': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.credentials'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known config file 'SetupInfo': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\.setup_info'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO PipelineDirectoryManager] Loading tracking config if exists: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_PipelineMapping\ALKA-PANDEY01/Zero-deployment\PipelineFolder.json
+[2026-10-22 21:08:52Z INFO PipelineDirectoryManager] Updating job run properties.
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO JobExtension] Downloading actions
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Work': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work'
+[2026-10-22 21:08:52Z INFO HostContext] Well known directory 'Actions': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions'
+[2026-10-22 21:08:52Z ERR  JobExtension] Caught exception from JobExtension Initialization: System.AggregateException: One or more errors occurred. (The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\ci.yml' because it is being used by another process.) (The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\validate.yml' because it is being used by another process.)
+ ---> System.IO.IOException: The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\ci.yml' because it is being used by another process.
+   at System.IO.FileSystem.DeleteFile(String fullPath)
+   at System.IO.FileInfo.Delete()
+   at GitHub.Runner.Sdk.IOUtil.<>c__DisplayClass11_0.<DeleteDirectory>b__0(FileSystemInfo item)
+   at System.Linq.Parallel.ForAllOperator`1.ForAllEnumerator`1.MoveNext(TInput& currentElement, Int32& currentKey)
+   at System.Linq.Parallel.ForAllSpoolingTask`2.SpoolingWork()
+   at System.Linq.Parallel.SpoolingTaskBase.Work()
+   at System.Linq.Parallel.QueryTask.BaseWork(Object unused)
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+   --- End of inner exception stack trace ---
+   at System.Linq.Parallel.QueryTaskGroupState.QueryEnd(Boolean userInitiatedDispose)
+   at System.Linq.Parallel.SpoolingTask.SpoolForAll[TInputOutput,TIgnoreKey](QueryTaskGroupState groupState, PartitionedStream`2 partitions, TaskScheduler taskScheduler)
+   at System.Linq.Parallel.DefaultMergeHelper`2.System.Linq.Parallel.IMergeHelper<TInputOutput>.Execute()
+   at System.Linq.Parallel.MergeExecutor`1.Execute()
+   at System.Linq.Parallel.MergeExecutor`1.Execute[TKey](PartitionedStream`2 partitions, Boolean ignoreOutput, ParallelMergeOptions options, TaskScheduler taskScheduler, Boolean isOrdered, CancellationState cancellationState, Int32 queryId)
+   at System.Linq.Parallel.PartitionedStreamMerger`1.Receive[TKey](PartitionedStream`2 partitionedStream)
+   at System.Linq.Parallel.ForAllOperator`1.WrapPartitionedStream[TKey](PartitionedStream`2 inputStream, IPartitionedStreamRecipient`1 recipient, Boolean preferStriping, QuerySettings settings)
+   at System.Linq.Parallel.UnaryQueryOperator`2.UnaryQueryOperatorResults.ChildResultsRecipient.Receive[TKey](PartitionedStream`2 inputStream)
+   at System.Linq.Parallel.ScanQueryOperator`1.ScanEnumerableQueryOperatorResults.GivePartitionedStream(IPartitionedStreamRecipient`1 recipient)
+   at System.Linq.Parallel.UnaryQueryOperator`2.UnaryQueryOperatorResults.GivePartitionedStream(IPartitionedStreamRecipient`1 recipient)
+   at System.Linq.Parallel.QueryOperator`1.GetOpenedEnumerator(Nullable`1 mergeOptions, Boolean suppressOrder, Boolean forEffect, QuerySettings querySettings)
+   at System.Linq.Parallel.ForAllOperator`1.RunSynchronously()
+   at GitHub.Runner.Sdk.IOUtil.DeleteDirectory(String path, Boolean contentsOnly, Boolean continueOnContentDeleteError, CancellationToken cancellationToken)
+   at GitHub.Runner.Sdk.IOUtil.DeleteDirectory(String path, CancellationToken cancellationToken)
+   at GitHub.Runner.Worker.ActionManager.PrepareActionsAsync(IExecutionContext executionContext, IEnumerable`1 steps, Guid rootStepId)
+   at GitHub.Runner.Worker.JobExtension.InitializeJob(IExecutionContext jobContext, AgentJobRequestMessage message)
+ ---> (Inner Exception #1) System.IO.IOException: The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\validate.yml' because it is being used by another process.
+   at System.IO.FileSystem.DeleteFile(String fullPath)
+   at System.IO.FileInfo.Delete()
+   at GitHub.Runner.Sdk.IOUtil.<>c__DisplayClass11_0.<DeleteDirectory>b__0(FileSystemInfo item)
+   at System.Linq.Parallel.ForAllOperator`1.ForAllEnumerator`1.MoveNext(TInput& currentElement, Int32& currentKey)
+   at System.Linq.Parallel.ForAllSpoolingTask`2.SpoolingWork()
+   at System.Linq.Parallel.SpoolingTaskBase.Work()
+   at System.Linq.Parallel.QueryTask.BaseWork(Object unused)
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)<---
+
+[2026-10-22 21:08:52Z INFO ExecutionContext] Publish step telemetry for current step {
+  "action": "setup_job",
+  "type": "runner",
+  "stage": "Pre",
+  "stepId": "957ae6b2-7701-4667-92e7-1c0f481fb39f",
+  "result": "failed",
+  "errorMessages": [
+    "One or more errors occurred. (The process cannot access the file 'C:\\Users\\Sheetal\\Desktop\\zero-deployment\\actions-runner\\_work\\_actions\\docker\\setup-buildx-action\\v3\\.github\\workflows\\ci.yml' because it is being used by another process.) (The process cann"
+  ],
+  "executionTimeInSeconds": 1,
+  "startTime": "2026-10-22T21:08:52.3010883Z",
+  "finishTime": "2026-10-22T21:08:52.4214697Z"
+}.
+[2026-10-22 21:08:52Z ERR  JobRunner] Job initialize failed.
+[2026-10-22 21:08:52Z ERR  JobRunner] Caught exception from InitializeJob: System.AggregateException: One or more errors occurred. (The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\ci.yml' because it is being used by another process.) (The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\validate.yml' because it is being used by another process.)
+ ---> System.IO.IOException: The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\ci.yml' because it is being used by another process.
+   at System.IO.FileSystem.DeleteFile(String fullPath)
+   at System.IO.FileInfo.Delete()
+   at GitHub.Runner.Sdk.IOUtil.<>c__DisplayClass11_0.<DeleteDirectory>b__0(FileSystemInfo item)
+   at System.Linq.Parallel.ForAllOperator`1.ForAllEnumerator`1.MoveNext(TInput& currentElement, Int32& currentKey)
+   at System.Linq.Parallel.ForAllSpoolingTask`2.SpoolingWork()
+   at System.Linq.Parallel.SpoolingTaskBase.Work()
+   at System.Linq.Parallel.QueryTask.BaseWork(Object unused)
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+   --- End of inner exception stack trace ---
+   at System.Linq.Parallel.QueryTaskGroupState.QueryEnd(Boolean userInitiatedDispose)
+   at System.Linq.Parallel.SpoolingTask.SpoolForAll[TInputOutput,TIgnoreKey](QueryTaskGroupState groupState, PartitionedStream`2 partitions, TaskScheduler taskScheduler)
+   at System.Linq.Parallel.DefaultMergeHelper`2.System.Linq.Parallel.IMergeHelper<TInputOutput>.Execute()
+   at System.Linq.Parallel.MergeExecutor`1.Execute()
+   at System.Linq.Parallel.MergeExecutor`1.Execute[TKey](PartitionedStream`2 partitions, Boolean ignoreOutput, ParallelMergeOptions options, TaskScheduler taskScheduler, Boolean isOrdered, CancellationState cancellationState, Int32 queryId)
+   at System.Linq.Parallel.PartitionedStreamMerger`1.Receive[TKey](PartitionedStream`2 partitionedStream)
+   at System.Linq.Parallel.ForAllOperator`1.WrapPartitionedStream[TKey](PartitionedStream`2 inputStream, IPartitionedStreamRecipient`1 recipient, Boolean preferStriping, QuerySettings settings)
+   at System.Linq.Parallel.UnaryQueryOperator`2.UnaryQueryOperatorResults.ChildResultsRecipient.Receive[TKey](PartitionedStream`2 inputStream)
+   at System.Linq.Parallel.ScanQueryOperator`1.ScanEnumerableQueryOperatorResults.GivePartitionedStream(IPartitionedStreamRecipient`1 recipient)
+   at System.Linq.Parallel.UnaryQueryOperator`2.UnaryQueryOperatorResults.GivePartitionedStream(IPartitionedStreamRecipient`1 recipient)
+   at System.Linq.Parallel.QueryOperator`1.GetOpenedEnumerator(Nullable`1 mergeOptions, Boolean suppressOrder, Boolean forEffect, QuerySettings querySettings)
+   at System.Linq.Parallel.ForAllOperator`1.RunSynchronously()
+   at GitHub.Runner.Sdk.IOUtil.DeleteDirectory(String path, Boolean contentsOnly, Boolean continueOnContentDeleteError, CancellationToken cancellationToken)
+   at GitHub.Runner.Sdk.IOUtil.DeleteDirectory(String path, CancellationToken cancellationToken)
+   at GitHub.Runner.Worker.ActionManager.PrepareActionsAsync(IExecutionContext executionContext, IEnumerable`1 steps, Guid rootStepId)
+   at GitHub.Runner.Worker.JobExtension.InitializeJob(IExecutionContext jobContext, AgentJobRequestMessage message)
+   at GitHub.Runner.Worker.JobExtension.InitializeJob(IExecutionContext jobContext, AgentJobRequestMessage message)
+   at GitHub.Runner.Worker.JobRunner.RunAsync(AgentJobRequestMessage message, CancellationToken jobRequestCancellationToken)
+ ---> (Inner Exception #1) System.IO.IOException: The process cannot access the file 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_actions\docker\setup-buildx-action\v3\.github\workflows\validate.yml' because it is being used by another process.
+   at System.IO.FileSystem.DeleteFile(String fullPath)
+   at System.IO.FileInfo.Delete()
+   at GitHub.Runner.Sdk.IOUtil.<>c__DisplayClass11_0.<DeleteDirectory>b__0(FileSystemInfo item)
+   at System.Linq.Parallel.ForAllOperator`1.ForAllEnumerator`1.MoveNext(TInput& currentElement, Int32& currentKey)
+   at System.Linq.Parallel.ForAllSpoolingTask`2.SpoolingWork()
+   at System.Linq.Parallel.SpoolingTaskBase.Work()
+   at System.Linq.Parallel.QueryTask.BaseWork(Object unused)
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+--- End of stack trace from previous location ---
+   at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+   at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)<---
+
+[2026-10-22 21:08:52Z INFO JobRunner] Shutting down the job server queue.
+[2026-10-22 21:08:52Z INFO JobServerQueue] Fire signal to shutdown all queues.
+[2026-10-22 21:08:52Z INFO Worker] Listening for cancel message from the channel.
+[2026-10-22 21:08:52Z INFO Worker] Waiting for the job to complete or for a cancel message from the channel.
+[2026-10-22 21:08:53Z INFO JobServerQueue] All queue process task stopped.
+[2026-10-22 21:08:53Z INFO ResultServer] Successfully started websocket client.
+[2026-10-22 21:08:53Z INFO JobServerQueue] Try to append 1 batches web console lines for record '957ae6b2-7701-4667-92e7-1c0f481fb39f', success rate: 1/1.
+[2026-10-22 21:08:53Z INFO JobServerQueue] Web console line queue drained.
+[2026-10-22 21:08:53Z INFO JobServerQueue] Uploading 2 files in one shot.
+[2026-10-22 21:08:53Z INFO JobServerQueue] Try to upload 2 log files or attachments, success rate: 2/2.
+[2026-10-22 21:08:53Z INFO JobServerQueue] File upload queue drained.
+[2026-10-22 21:08:53Z INFO JobServerQueue] Starting results-based upload queue...
+[2026-10-22 21:08:53Z INFO JobServerQueue] Uploading 2 file(s) in one shot through results service.
+[2026-10-22 21:08:53Z INFO JobServerQueue] Got a step log file to send to results service.
+[2026-10-22 21:08:53Z INFO JobServerQueue] Starting upload of step log file to results service ResultsLog, C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag\blocks\78057323-ab0f-472c-9f54-27ab6930cdc5_957ae6b2-7701-4667-92e7-1c0f481fb39f.1
+[2026-10-22 21:08:55Z INFO JobServerQueue] Got a job log file to send to results service.
+[2026-10-22 21:08:55Z INFO JobServerQueue] Starting upload of job log file to results service ResultsLog, C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag\blocks\78057323-ab0f-472c-9f54-27ab6930cdc5_1a8f41ca-6322-5414-93f0-7f00438a1ec8.1
+[2026-10-22 21:08:56Z INFO JobServerQueue] Tried to upload 2 file(s) to results, success rate: 2/2.
+[2026-10-22 21:08:56Z INFO JobServerQueue] Results upload queue drained.
+[2026-10-22 21:08:56Z INFO JobServerQueue] Job timeline record has been updated for the first time.
+[2026-10-22 21:08:56Z INFO JobServerQueue] Timeline update queue drained.
+[2026-10-22 21:08:56Z INFO JobServerQueue] Disposing job server ...
+[2026-10-22 21:08:56Z INFO JobServerQueue] Disposing results server ...
+[2026-10-22 21:08:56Z INFO JobServerQueue] All queue process tasks have been stopped, and all queues are drained.
+[2026-10-22 21:08:56Z INFO TempDirectoryManager] Cleaning runner temp folder: C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_work\_temp
+[2026-10-22 21:08:56Z INFO HostContext] Well known directory 'Bin': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\bin'
+[2026-10-22 21:08:56Z INFO HostContext] Well known directory 'Root': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner'
+[2026-10-22 21:08:56Z INFO HostContext] Well known directory 'Diag': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag'
+[2026-10-22 21:08:56Z INFO HostContext] Well known config file 'Telemetry': 'C:\Users\Sheetal\Desktop\zero-deployment\actions-runner\_diag\.telemetry'
+[2026-10-22 21:08:56Z INFO JobRunner] Raising job completed against run service
+[2026-10-22 21:08:57Z INFO Worker] Job completed.

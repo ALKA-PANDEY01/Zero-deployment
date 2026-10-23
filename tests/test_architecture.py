@@ -45,6 +45,21 @@ def test_valid_yaml_configuration_loads():
     assert config.limits.max_error_rate == 5
 
 
+def test_second_application_example_loads_without_demo_routes():
+    project_root = Path(__file__).resolve().parents[1]
+    example_root = project_root / "examples" / "notes-service"
+    config = load_config(example_root / "zerodown.yaml")
+
+    assert config.app.name == "notes-service"
+    assert config.app.port == 8081
+    assert config.app.build_context == "./examples/notes-service"
+    assert config.app.dockerfile == "Dockerfile"
+    assert config.health.endpoint == "/ready"
+    assert config.health.smoke_endpoints == ("/",)
+    assert (example_root / config.app.dockerfile).is_file()
+    assert (example_root / "app" / "main.py").is_file()
+
+
 def test_missing_required_field_has_useful_error():
     raw = sample_config()
     del raw["app"]["name"]
@@ -161,6 +176,9 @@ def test_deployment_uses_configured_rollout_plan(monkeypatch):
             DeploymentPhase.STARTING,
         )
 
+    async def promote_candidate():
+        controller.deployment_state["active_version"] = "v2"
+
     async def validate_v2():
         events.append(("validate", "v2"))
         return True, "healthy"
@@ -174,6 +192,11 @@ def test_deployment_uses_configured_rollout_plan(monkeypatch):
 
     monkeypatch.setattr(controller, "validate_v2", validate_v2)
     monkeypatch.setattr(controller, "build_and_start_v2", prepare_candidate)
+    monkeypatch.setattr(
+        controller,
+        "promote_v2_and_prepare_rollback",
+        promote_candidate,
+    )
     monkeypatch.setattr(controller, "set_traffic", set_traffic)
     monkeypatch.setattr(controller, "monitor_canary", monitor_canary)
 
@@ -229,6 +252,7 @@ def test_deployment_status_api_reports_live_rollout_fields(monkeypatch):
         "metrics": {"error_rate": 0.01},
         "rollback": None,
         "candidate_logs": None,
+        "active_version": "v1",
         "message": "Monitoring 25% canary",
     }.items():
         monkeypatch.setitem(controller.deployment_state, key, value)
@@ -242,6 +266,7 @@ def test_deployment_status_api_reports_live_rollout_fields(monkeypatch):
         "application": "demo-app",
         "deployment_id": controller.deployment_state["deployment_id"],
         "stable_version": "v1",
+        "active_version": "v1",
         "candidate_version": "v2",
         "stages": [10, 25, 50, 100],
         "events": controller.deployment_state["steps"],
@@ -252,6 +277,7 @@ def test_deployment_status_api_reports_live_rollout_fields(monkeypatch):
         "metrics": {"error_rate": 0.01},
         "rollback": None,
         "candidate_logs": None,
+        "demo_mode": controller.deployment_state["demo_mode"],
         "message": "Monitoring 25% canary",
         "started_at": controller.deployment_state["started_at"],
         "finished_at": controller.deployment_state["finished_at"],
@@ -331,7 +357,8 @@ def test_ci_deploy_api_schedules_immutable_image_without_exposing_credentials(
     registry_token = "github-actions-registry-secret"
     image = "ghcr.io/example/demo-app:" + "a" * 40
     scheduled = []
-    monkeypatch.setenv("ZERODOWN_DEPLOY_TOKEN", token)
+    monkeypatch.setattr(controller, "DEPLOY_TOKEN", token)
+    monkeypatch.setattr(controller, "AUTH_REQUIRED", True)
     monkeypatch.setattr(
         controller,
         "schedule_deployment",

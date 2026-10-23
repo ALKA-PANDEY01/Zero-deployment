@@ -32,6 +32,7 @@ class FakeContainer:
         self.environment = environment
         self.labels = labels
         self.network = network
+        self.ports = ports
 
     def reload(self):
         return None
@@ -60,7 +61,7 @@ class FakeContainers:
             raise docker.errors.NotFound("container not found") from error
 
     def run(self, image, name, detach, network, ports, environment, labels):
-        container_port, host = next(iter(ports.items()))
+        container_port, host = next(iter(ports.items())) if ports else ("8000/tcp", None)
         container = FakeContainer(
             name,
             FakeImage(),
@@ -69,10 +70,12 @@ class FakeContainers:
             environment,
             labels,
         )
+        container.ports = ports
         container.client = type("ContainerClient", (), {"containers": self})()
-        container.attrs["NetworkSettings"]["Ports"][container_port][0][
-            "HostPort"
-        ] = str(host[1])
+        if host is not None:
+            container.attrs["NetworkSettings"]["Ports"][container_port][0][
+                "HostPort"
+            ] = str(host[1])
         self.items[name] = container
         return container
 
@@ -162,12 +165,16 @@ def test_manager_keeps_versions_independent_and_reports_health_and_logs():
         version="v2",
         app_name="demo-app",
         host_port=18102,
+        extra_environment={"ZERODOWN_DEMO_FAILURE_AFTER_REQUESTS": "9"},
     )
 
     assert v1["status"] == v2["status"] == "running"
     assert v1["health"] == v2["health"] == "healthy"
     assert manager.inspect_container("zerodown-demo-app-v1")["status"] == "running"
     assert manager.container_logs("zerodown-demo-app-v2") == "demo application started\n"
+    assert client.containers.items["zerodown-demo-app-v2"].environment[
+        "ZERODOWN_DEMO_FAILURE_AFTER_REQUESTS"
+    ] == "9"
 
     manager.stop_container("zerodown-demo-app-v1")
 
@@ -175,6 +182,28 @@ def test_manager_keeps_versions_independent_and_reports_health_and_logs():
     assert manager.inspect_container("zerodown-demo-app-v2")["status"] == "running"
     manager.remove_container("zerodown-demo-app-v1")
     assert not manager.container_exists("zerodown-demo-app-v1")
+
+
+def test_manager_can_start_network_only_rollback_standby():
+    client = FakeDockerClient()
+    manager = DockerManager(client=client)
+
+    manager.start_container(
+        image="zerodown/demo-app:v2",
+        name="zerodown-demo-app-v1-rollback",
+        port=8000,
+        version="v1",
+        app_name="demo-app",
+        host_port=None,
+    )
+
+    container = client.containers.items["zerodown-demo-app-v1-rollback"]
+    assert container.network == "zerodown"
+    assert container.ports is None
+    assert container.environment["APP_VERSION"] == "v1"
+    assert container.attrs["NetworkSettings"]["Ports"]["8000/tcp"][0][
+        "HostPort"
+    ] == "18101"
 
 
 def test_version_api_build_start_inspect_logs_stop_and_remove(monkeypatch):

@@ -1,12 +1,14 @@
 """REST endpoints exposing the configuration and deployment phase model."""
 
 from dataclasses import asdict
+import logging
 
 import docker
 from fastapi import APIRouter, HTTPException, Query, Request
 
 
 router = APIRouter(prefix="/api/v1", tags=["ZeroDown"])
+logger = logging.getLogger("zerodown.api")
 
 
 @router.get("/config")
@@ -39,7 +41,8 @@ def _version_details(request: Request, version: str):
 
 
 def _docker_error(error: Exception) -> HTTPException:
-    return HTTPException(status_code=502, detail=f"Docker operation failed: {error}")
+    logger.error("Docker API operation failed: %s", type(error).__name__)
+    return HTTPException(status_code=502, detail="Docker operation failed")
 
 
 @router.post("/versions/{version}/build")

@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -23,17 +24,29 @@ def reset_deployment_state(monkeypatch):
     monkeypatch.setitem(controller.deployment_state, "rollback", None)
     monkeypatch.setitem(controller.deployment_state, "candidate_logs", None)
     monkeypatch.setitem(controller.deployment_state, "container_name", None)
+    monkeypatch.setitem(controller.deployment_state, "demo_mode", False)
+    monkeypatch.setitem(controller.deployment_state, "active_version", "v1")
+    monkeypatch.setattr(controller, "deployment_history", [])
 
 
 def mock_candidate_start(monkeypatch):
-    async def prepare():
+    async def prepare(**kwargs):
         controller.record(
             "Built and started test V2",
             "starting",
             controller.DeploymentPhase.STARTING,
         )
 
+    async def promote():
+        controller.deployment_state["active_version"] = "v2"
+        controller.record("V1 rollback standby prepared")
+
     monkeypatch.setattr(controller, "build_and_start_v2", prepare)
+    monkeypatch.setattr(
+        controller,
+        "promote_v2_and_prepare_rollback",
+        promote,
+    )
 
 
 def test_v2_is_checked_before_canary_traffic(monkeypatch):
@@ -71,6 +84,11 @@ def test_v2_is_checked_before_canary_traffic(monkeypatch):
         ("traffic", 0, 100),
     ]
     assert controller.deployment_state["status"] == "succeeded"
+    assert controller.deployment_state["active_version"] == "v2"
+    assert controller.deployment_history[-1]["active_version"] == "v2"
+    assert "DEPLOYMENT SUCCESSFUL" in [
+        event["message"] for event in controller.deployment_history[-1]["events"]
+    ]
     assert (
         controller.app.state.deployment_state_store.snapshot().phase
         is controller.DeploymentPhase.SUCCESS
@@ -221,7 +239,7 @@ def test_v2_health_failure_during_canary_rolls_back(monkeypatch):
     }
 
 
-def test_demo_failure_rolls_back_at_second_configured_stage(monkeypatch):
+def test_demo_failure_rolls_back_at_fifty_percent_stage(monkeypatch):
     reset_deployment_state(monkeypatch)
     mock_candidate_start(monkeypatch)
     current = controller.app.state.zerodown_config
@@ -244,16 +262,13 @@ def test_demo_failure_rolls_back_at_second_configured_stage(monkeypatch):
     async def validate_v2():
         return True, "V2 healthy"
 
-    async def inject_failure(enabled):
-        events.append(("inject", enabled))
-
     def set_traffic(v1, v2):
         events.append(("traffic", v1, v2))
         controller.deployment_state["traffic"] = v2
 
     async def monitor_canary(v2_percent, observation_seconds, simulate_failure=False):
-        events.append(("monitor", v2_percent))
-        if v2_percent == 25:
+        events.append(("monitor", v2_percent, simulate_failure))
+        if v2_percent == 50:
             controller.deployment_state["health"] = "unhealthy"
             controller.deployment_state["metrics"] = {
                 "error_rate": 1.0,
@@ -263,7 +278,6 @@ def test_demo_failure_rolls_back_at_second_configured_stage(monkeypatch):
         return True, "healthy"
 
     monkeypatch.setattr(controller, "validate_v2", validate_v2)
-    monkeypatch.setattr(controller, "set_v2_demo_failure", inject_failure)
     monkeypatch.setattr(controller, "set_traffic", set_traffic)
     monkeypatch.setattr(controller, "monitor_canary", monitor_canary)
 
@@ -271,12 +285,170 @@ def test_demo_failure_rolls_back_at_second_configured_stage(monkeypatch):
 
     assert ("traffic", 90, 10) in events
     assert ("traffic", 75, 25) in events
-    assert ("traffic", 50, 50) not in events
+    assert ("traffic", 50, 50) in events
     assert ("traffic", 0, 100) not in events
+    assert ("monitor", 10, False) in events
+    assert ("monitor", 25, False) in events
+    assert ("monitor", 50, True) in events
     assert events[-1] == ("traffic", 100, 0)
     assert controller.deployment_state["phase"] == "ROLLBACK"
     assert controller.deployment_state["health"] == "unhealthy"
-    assert controller.deployment_state["rollback"]["traffic_at_failure"] == 25
+    assert controller.deployment_state["rollback"]["traffic_at_failure"] == 50
+    messages = [step["message"] for step in controller.deployment_state["steps"]]
+    assert "ZeroDown detected canary failure: V2 /health returned HTTP 500" in messages
+    assert "V1 restored: 100% traffic" in messages
+
+
+def test_failure_demo_api_requires_the_demonstration_stages(monkeypatch):
+    current = controller.app.state.zerodown_config
+    monkeypatch.setattr(
+        controller.app.state,
+        "zerodown_config",
+        type(current)(
+            app=current.app,
+            health=current.health,
+            rollout=type(current.rollout)(
+                stages=(10, 25, 100),
+                stage_seconds=3,
+                observation_seconds=15,
+            ),
+            limits=current.limits,
+        ),
+    )
+
+    from fastapi.testclient import TestClient
+
+    with TestClient(controller.app) as client:
+        response = client.post("/demo/failure", json={"observation_seconds": 1})
+
+    assert response.status_code == 400
+    assert "requires rollout stages 10%, 25%, and 50%" in response.json()["detail"]
+
+
+def test_demo_failure_threshold_is_after_early_canary_requests(monkeypatch):
+    current = controller.app.state.zerodown_config
+    monkeypatch.setattr(
+        controller.app.state,
+        "zerodown_config",
+        type(current)(
+            app=current.app,
+            health=current.health,
+            rollout=type(current.rollout)(
+                stages=(10, 25, 50, 100),
+                stage_seconds=3,
+                observation_seconds=15,
+            ),
+            limits=current.limits,
+        ),
+    )
+
+    assert controller.demo_failure_after_requests() == 9
+
+
+def test_successful_promotion_replaces_old_v1_after_validating_standby(monkeypatch):
+    events = []
+
+    class FakeRouter:
+        targets = {
+            "v1": ("app_v1", "old-v1"),
+            "v2": ("candidate-v2", "candidate-v2"),
+        }
+
+        @staticmethod
+        def get_traffic():
+            return {"v1_percent": 0, "v2_percent": 100}
+
+        def set_version_target(self, version, target, container_name):
+            assert self.get_traffic()[f"{version}_percent"] == 0
+            self.targets[version] = (target, container_name)
+            events.append(("route", version, container_name))
+
+    class FakeManager:
+        @staticmethod
+        def container_name(app_name, version):
+            return f"zerodown-{app_name}-{version}"
+
+        @staticmethod
+        def inspect_container(name):
+            assert name == "candidate-v2"
+            return {"image": "zerodown/demo-app:v2"}
+
+        @staticmethod
+        def start_container(image, name, port, version, app_name, host_port):
+            assert image == "zerodown/demo-app:v2"
+            assert version == "v1"
+            assert host_port is None
+            events.append(("standby-started", name))
+            return {"name": name, "status": "running"}
+
+        @staticmethod
+        def container_exists(name):
+            return name == "old-v1"
+
+        @staticmethod
+        def remove_container(name):
+            events.append(("removed", name))
+
+    monkeypatch.setattr(
+        controller.app.state,
+        "traffic_router",
+        FakeRouter(),
+    )
+    monkeypatch.setattr(
+        controller.app.state,
+        "docker_manager",
+        FakeManager(),
+    )
+    controller.deployment_state["container_name"] = "candidate-v2"
+    controller.deployment_state["deployment_id"] = "deployment-12345678"
+
+    async def validate_standby(version, container_name, base_url):
+        assert version == "v1"
+        assert container_name.endswith("-rollback-deployme")
+        assert base_url.startswith("http://")
+        events.append(("standby-validated", container_name))
+        return SimpleNamespace(
+            healthy=True,
+            checks=(),
+            message="Rollback standby is healthy",
+        )
+
+    monkeypatch.setattr(controller, "validate_version", validate_standby)
+
+    asyncio.run(controller.promote_v2_and_prepare_rollback())
+
+    assert events[0][0] == "standby-started"
+    assert events[1][0] == "standby-validated"
+    assert events[2] == ("route", "v1", events[0][1])
+    assert events[3] == ("removed", "old-v1")
+    assert controller.deployment_state["active_version"] == "v2"
+    assert controller.app.state.traffic_router.targets["v1"][1] == events[0][1]
+
+
+def test_deployment_history_is_persisted_as_json_lines(monkeypatch, tmp_path):
+    history_file = tmp_path / "history" / "deployments.jsonl"
+    monkeypatch.setattr(controller, "DEPLOYMENT_HISTORY_PATH", str(history_file))
+    monkeypatch.setattr(controller, "deployment_history", [])
+    monkeypatch.setitem(controller.deployment_state, "deployment_id", "history-test")
+    monkeypatch.setitem(controller.deployment_state, "phase", "SUCCESS")
+    monkeypatch.setitem(controller.deployment_state, "active_version", "v2")
+    monkeypatch.setitem(controller.deployment_state, "steps", [{"message": "done"}])
+
+    controller.persist_deployment_history()
+
+    import json
+
+    entries = [
+        json.loads(line)
+        for line in history_file.read_text(encoding="utf-8").splitlines()
+    ]
+    assert entries[0]["deployment_id"] == "history-test"
+    assert entries[0]["status"] == "SUCCESS"
+    assert entries[0]["active_version"] == "v2"
+    assert entries[0]["events"] == [{"message": "done"}]
+    assert entries[0]["targets"]["v1"] == list(
+        controller.app.state.traffic_router.targets["v1"]
+    )
 
 
 def test_set_traffic_delegates_to_router(monkeypatch):

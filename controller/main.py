@@ -1,19 +1,24 @@
 import asyncio
+import copy
 import hmac
 import json
+import logging
 import math
 import os
 import re
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
 import docker
 import httpx
-from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 if __package__:
     from .zerodown.api import router as architecture_api
@@ -39,9 +44,88 @@ except ImportError:
 DASHBOARD_HTML = Path(__file__).with_name('dashboard.html').read_text(encoding='utf-8')
 
 
+class JsonLogFormatter(logging.Formatter):
+    def format(self, record):
+        message = record.getMessage()
+        message = re.sub(
+            r"(?i)(password|token|api[_-]?key)([=:]\s*)[^&\s,]+",
+            r"\1\2[REDACTED]",
+            message,
+        )
+        message = re.sub(r"(?<=://)[^/@\s]+:[^/@\s]+@", "[REDACTED]@", message)
+        payload = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": message,
+        }
+        for key in ("event", "deployment_id", "phase", "path"):
+            value = getattr(record, key, None)
+            if value is not None:
+                payload[key] = value
+        return json.dumps(payload, ensure_ascii=False)
+
+
+handler = logging.StreamHandler()
+handler.setFormatter(JsonLogFormatter())
+logger = logging.getLogger("zerodown")
+logger.handlers.clear()
+logger.addHandler(handler)
+logger.setLevel(os.getenv("ZERODOWN_LOG_LEVEL", "INFO").upper())
+logger.propagate = False
+
+
+def read_secret(name: str, file_name: str | None = None) -> str | None:
+    secret_path = os.getenv(file_name) if file_name else None
+    if secret_path:
+        try:
+            value = Path(secret_path).read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            value = os.getenv(name)
+    else:
+        value = os.getenv(name)
+    return value or None
+
+
+def parse_bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized not in {"1", "true", "yes", "on", "0", "false", "no", "off"}:
+        raise ValueError(f"{name} must be a boolean value")
+    return normalized in {"1", "true", "yes", "on"}
+
+
+@asynccontextmanager
+async def lifespan(application):
+    yield
+    task = application.state.deployment_task
+    if task is not None and not task.done():
+        logger.info("Stopping active deployment during shutdown")
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("Deployment cleanup failed during shutdown")
+    clients = (
+        getattr(application.state.docker_manager, "_client", None),
+        getattr(application.state.traffic_router, "_client", None),
+        getattr(application.state, "docker_metrics_client", None),
+    )
+    for client in {id(client): client for client in clients if client is not None}.values():
+        try:
+            client.close()
+        except Exception:
+            logger.exception("Could not close a Docker client")
+
+
 app = FastAPI(
     title="Zero-Downtime Deployment Controller",
     version="1.0.0",
+    lifespan=lifespan,
 )
 app.state.zerodown_config = load_config()
 app.state.deployment_state_store = DeploymentStateStore()
@@ -79,8 +163,130 @@ GATEWAY_URL = os.getenv(
     "http://proxy"
 )
 
-V2_CONTAINER = os.getenv("V2_CONTAINER", "zerodown-app-v2")
 RISK_TELEMETRY_PATH = os.getenv("RISK_TELEMETRY_PATH")
+DEPLOYMENT_HISTORY_PATH = os.getenv(
+    "ZERODOWN_DEPLOYMENT_HISTORY_PATH",
+    str(Path(__file__).resolve().parents[1] / "data" / "deployment-history.jsonl"),
+)
+DEPLOY_TOKEN = read_secret("ZERODOWN_DEPLOY_TOKEN", "ZERODOWN_DEPLOY_TOKEN_FILE")
+AUTH_REQUIRED = parse_bool_env("ZERODOWN_AUTH_REQUIRED", default=False)
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ZERODOWN_CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+if "*" in CORS_ORIGINS:
+    raise ValueError("ZERODOWN_CORS_ORIGINS must list explicit origins")
+if AUTH_REQUIRED and not DEPLOY_TOKEN:
+    logger.warning("Deployment APIs are unavailable until a token is configured")
+elif not DEPLOY_TOKEN:
+    logger.warning("Unauthenticated deployment APIs are enabled for local development")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+
+def requires_authentication(method: str, path: str) -> bool:
+    if method == "GET" and path in {
+        "/status",
+        "/deployment/status",
+        "/deployment/history",
+        "/dashboard/versions",
+        "/dashboard/proxy-health",
+        "/api/v1/config",
+        "/api/v1/deployment/state",
+    }:
+        return True
+    if method == "GET" and re.fullmatch(r"/api/v1/versions/v[12](?:/logs)?", path):
+        return True
+    if method == "POST" and path in {
+        "/deploy", "/demo/failure", "/rollback", "/deployment/cancel",
+    }:
+        return True
+    if method == "PUT" and path == "/deployment/traffic":
+        return True
+    if method == "GET" and re.fullmatch(r"/api/v1/versions/v[12]/logs", path):
+        return True
+    return bool(
+        method == "DELETE" and re.fullmatch(r"/api/v1/versions/v[12]", path)
+        or method == "POST"
+        and re.fullmatch(r"/api/v1/versions/v[12]/(?:build|start|stop)", path)
+    )
+
+
+@app.middleware("http")
+async def protect_mutating_apis(request: Request, call_next):
+    path = request.url.path
+    if requires_authentication(request.method, path):
+        if not DEPLOY_TOKEN:
+            if AUTH_REQUIRED:
+                response = JSONResponse(
+                    status_code=503,
+                    content={"detail": "Deployment authentication is not configured"},
+                )
+                response.headers["Cache-Control"] = "no-store"
+                return response
+        else:
+            supplied = request.headers.get("authorization", "")
+            expected = f"Bearer {DEPLOY_TOKEN}"
+            if not hmac.compare_digest(supplied.encode(), expected.encode()):
+                response = JSONResponse(
+                    status_code=401,
+                    content={"detail": "Invalid deployment token"},
+                )
+                response.headers["Cache-Control"] = "no-store"
+                return response
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, error: RequestValidationError):
+    # Pydantic errors can contain the submitted input, including credentials.
+    details = [
+        {key: item[key] for key in ("loc", "msg", "type") if key in item}
+        for item in error.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": details})
+
+
+@app.exception_handler(HTTPException)
+async def http_error_handler(request: Request, error: HTTPException):
+    return JSONResponse(
+        status_code=error.status_code,
+        content={"detail": error.detail},
+        headers=error.headers,
+    )
+
+
+@app.exception_handler(Exception)
+async def unexpected_error_handler(request: Request, error: Exception):
+    logger.exception("Unhandled request error", extra={"path": request.url.path})
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal error occurred"},
+    )
+
+
+def load_deployment_history() -> list[dict]:
+    if not DEPLOYMENT_HISTORY_PATH:
+        return []
+    history_path = Path(DEPLOYMENT_HISTORY_PATH)
+    if not history_path.exists():
+        return []
+    with history_path.open(encoding="utf-8") as history_file:
+        return [json.loads(line) for line in history_file if line.strip()]
+
+
+deployment_history = load_deployment_history()
 
 app.state.traffic_router = NginxTrafficRouter(
     config_path=Path(CONFIG),
@@ -119,26 +325,34 @@ deployment_state = {
     "candidate_logs": None,
     "active": False,
     "container_name": None,
+    "demo_mode": False,
+    "active_version": "v1",
 }
+if app.state.traffic_router.get_traffic()["v2_percent"] == 100:
+    deployment_state["active_version"] = "v2"
 
 
 deployment_lock = asyncio.Lock()
 app.state.deployment_task = None
+active_registry_auth: dict[str, str] = {}
 
 
 class DeployRequest(BaseModel):
-    observation_seconds: int | None = None
-    image: str | None = None
-    registry_username: str | None = None
-    registry_token: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    observation_seconds: int | None = Field(default=None, ge=1, le=300, strict=True)
+    image: str | None = Field(default=None, max_length=255, strict=True)
+    registry_username: str | None = Field(default=None, max_length=256, strict=True)
+    registry_token: str | None = Field(default=None, min_length=1, max_length=4096, strict=True)
 
 
 def app_url(version: str) -> str:
     configured_url = {"v1": V1_URL, "v2": V2_URL}[version]
     if configured_url:
         return configured_url
+    target, _ = app.state.traffic_router.targets[version]
     port = app.state.zerodown_config.app.port
-    return f"http://app_{version}:{port}"
+    return f"http://{target}:{port}"
 
 
 async def validate_version(
@@ -164,6 +378,19 @@ def record(
 ):
 
     timestamp = datetime.now(timezone.utc).isoformat()
+    message = re.sub(
+        r"(?i)(password|token|api[_-]?key)([=:]\s*)[^&\s,]+",
+        r"\1\2[REDACTED]",
+        message,
+    )
+    for secret in (
+        DEPLOY_TOKEN,
+        active_registry_auth.get("password"),
+        active_registry_auth.get("username"),
+    ):
+        if secret:
+            message = message.replace(secret, "[REDACTED]")
+    message = re.sub(r"(?<=://)[^/@\s]+:[^/@\s]+@", "[REDACTED]@", message)
     deployment_state["steps"].append(
         {
             "time": timestamp,
@@ -172,7 +399,14 @@ def record(
     )
     deployment_state["message"] = message
 
-    print(f"[{timestamp}] {message}", flush=True)
+    logger.info(
+        message,
+        extra={
+            "event": "deployment_event",
+            "deployment_id": deployment_state.get("deployment_id"),
+            "phase": phase.value if phase else deployment_state.get("phase"),
+        },
+    )
 
     if status:
         deployment_state["status"] = status
@@ -219,6 +453,7 @@ def candidate_app_url() -> str:
 async def build_and_start_v2(
     image_ref: str | None = None,
     registry_auth: dict[str, str] | None = None,
+    demo_failure_after_requests: int | None = None,
 ) -> None:
     config = app.state.zerodown_config
     manager = app.state.docker_manager
@@ -251,6 +486,11 @@ async def build_and_start_v2(
             "starting",
             DeploymentPhase.STARTING,
         )
+    extra_environment = (
+        {"ZERODOWN_DEMO_FAILURE_AFTER_REQUESTS": str(demo_failure_after_requests)}
+        if demo_failure_after_requests is not None
+        else None
+    )
     details = await asyncio.to_thread(
         manager.start_container,
         image_tag,
@@ -259,6 +499,7 @@ async def build_and_start_v2(
         "v2",
         config.app.name,
         manager.host_port("v2"),
+        extra_environment,
     )
     deployment_state["container_name"] = container_name
     app.state.traffic_router.set_version_target(
@@ -276,51 +517,15 @@ async def build_and_start_v2(
 async def check_endpoint(
     base_url: str,
     path: str,
-    expected_version: str | None = None,
 ):
-
     try:
-
-        async with httpx.AsyncClient(
-            timeout=3
-        ) as client:
-
-            response = await client.get(
-                f"{base_url}{path}"
-            )
-
+        async with httpx.AsyncClient(timeout=3) as client:
+            response = await client.get(f"{base_url}{path}")
         if response.status_code != 200:
-
-            return (
-                False,
-                f"{path} returned HTTP "
-                f"{response.status_code}",
-            )
-
-        data = response.json()
-
-        if expected_version:
-
-            if data.get("version") != expected_version:
-
-                return (
-                    False,
-                    f"{path}: expected "
-                    f"{expected_version}, got "
-                    f"{data.get('version')}",
-                )
-
-        return (
-            True,
-            f"{path} passed",
-        )
-
-    except Exception as error:
-
-        return (
-            False,
-            f"{path} failed: {error}",
-        )
+            return False, f"{path} returned HTTP {response.status_code}"
+        return True, f"{path} passed"
+    except httpx.HTTPError as error:
+        return False, f"{path} failed ({type(error).__name__})"
 
 
 # --------------------------------------------------
@@ -347,20 +552,18 @@ async def validate_v2():
     return result.healthy, result.message
 
 
-async def set_v2_demo_failure(enabled: bool):
-    """Toggle V2's local demo-only health failure switch."""
-    async with httpx.AsyncClient(timeout=3) as client:
-        response = await client.post(
-            f"{candidate_app_url()}/demo/failure/{str(enabled).lower()}"
-        )
-    response.raise_for_status()
-
-
 def get_v2_resource_metrics(container_name: str | None = None):
     """Read current V2 CPU and memory usage from Docker stats."""
     try:
-        container = docker.from_env(timeout=3).containers.get(
-            container_name or deployment_state.get("container_name") or V2_CONTAINER
+        config = app.state.zerodown_config
+        client = getattr(app.state, "docker_metrics_client", None)
+        if client is None:
+            client = docker.from_env(timeout=3)
+            app.state.docker_metrics_client = client
+        container = client.containers.get(
+            container_name
+            or deployment_state.get("container_name")
+            or app.state.docker_manager.container_name(config.app.name, "v2")
         )
         stats = container.stats(stream=False)
         cpu_stats = stats.get("cpu_stats", {})
@@ -381,7 +584,11 @@ def get_v2_resource_metrics(container_name: str | None = None):
             "memory_percent": max(0.0, min(100.0, memory_percent)) if memory_percent is not None else None,
         }
     except Exception as error:
-        return {"cpu_percent": None, "memory_percent": None, "resource_error": str(error)}
+        return {
+            "cpu_percent": None,
+            "memory_percent": None,
+            "resource_error": type(error).__name__,
+        }
 
 
 def percentile_95(values):
@@ -491,27 +698,15 @@ async def monitor_canary(
     health_checks = 0
     health_failures = 0
     latencies_ms = []
-    failure_injected = False
     started = time.monotonic()
     deadline = started + observation_seconds
 
     async with httpx.AsyncClient(timeout=2) as client:
         while time.monotonic() < deadline:
-            elapsed = time.monotonic() - started
-            if (
-                simulate_failure
-                and not failure_injected
-                and elapsed >= min(2, observation_seconds / 2)
-            ):
-                await set_v2_demo_failure(True)
-                failure_injected = True
-                record("Demo injected V2 health failure")
-
             health_started = time.perf_counter()
             healthy, health_message = await check_endpoint(
                 candidate_app_url(),
                 app.state.zerodown_config.health.endpoint,
-                "v2",
             )
             latencies_ms.append((time.perf_counter() - health_started) * 1000)
             health_checks += 1
@@ -546,16 +741,26 @@ async def monitor_canary(
                     errors += 1
                     if response.status_code >= 500:
                         server_errors += 1
+                        if simulate_failure and server_errors == 1:
+                            record(
+                                f"V2 began returning HTTP {response.status_code} "
+                                f"errors at V2={v2_percent}%"
+                            )
                 else:
                     successes += 1
-                    version = response.json().get("version")
+                    try:
+                        payload = response.json()
+                    except ValueError:
+                        payload = {}
+                    version = (
+                        payload.get("version")
+                        if isinstance(payload, dict)
+                        else None
+                    )
                     if version == "v1":
                         v1_responses += 1
                     elif version == "v2":
                         v2_responses += 1
-                    else:
-                        errors += 1
-                        successes -= 1
             except Exception:
                 errors += 1
 
@@ -584,11 +789,29 @@ async def monitor_canary(
         return False, "Canary monitor received no gateway responses"
     limit_failure = safety_limit_failure(metrics, prediction)
     if limit_failure:
+        record(f"Error threshold exceeded: {limit_failure}")
         return False, limit_failure
-    if simulate_failure and not failure_injected:
-        return False, "Demo failed to inject the V2 health failure"
+    if simulate_failure and server_errors == 0:
+        return False, (
+            "Deterministic demo fault did not produce an HTTP 5xx response "
+            f"at V2={v2_percent}%"
+        )
 
     return True, message
+
+
+def demo_failure_after_requests() -> int:
+    """Delay the demo app's deterministic fault until the 50% canary stage."""
+    stages = app.state.zerodown_config.rollout.stages
+    failure_stage_index = stages.index(50)
+    prior_traffic = sum(stages[:failure_stage_index])
+    expected_prior_requests = (
+        app.state.zerodown_config.rollout.stage_seconds
+        * 5
+        * prior_traffic
+        / 100
+    )
+    return max(3, math.ceil(expected_prior_requests + 3))
 
 
 # --------------------------------------------------
@@ -611,6 +834,7 @@ def rollback(
     )
 
     set_traffic(100, 0)
+    deployment_state["active_version"] = "v1"
     deployment_state["rollback"] = {
         "status": DeploymentPhase.ROLLBACK.value,
         "reason": reason_code,
@@ -621,9 +845,10 @@ def rollback(
     }
 
     record(
-        "Rollback complete: V1 receives 100% traffic",
+        "V1 restored: 100% traffic",
         "rolled_back",
     )
+    record("Rollback complete: V1 receives 100% traffic")
     if cleanup_candidate:
         preserve_and_remove_candidate()
 
@@ -667,6 +892,128 @@ def preserve_and_remove_candidate() -> None:
         record(f"Could not remove failed V2 container: {error}")
 
 
+async def promote_v2_and_prepare_rollback() -> None:
+    traffic_router = app.state.traffic_router
+    traffic = traffic_router.get_traffic()
+    if traffic != {"v1_percent": 0, "v2_percent": 100}:
+        raise RuntimeError("Cannot promote V2 unless it has 100% of traffic")
+
+    manager = app.state.docker_manager
+    config = app.state.zerodown_config
+    candidate_name = deployment_state["container_name"]
+    old_v1_target, old_v1_container = traffic_router.targets["v1"]
+    candidate = await asyncio.to_thread(
+        manager.inspect_container,
+        candidate_name,
+    )
+    standby_name = (
+        f"{manager.container_name(config.app.name, 'v1')}-rollback-"
+        f"{deployment_state['deployment_id'][:8]}"
+    )
+    await asyncio.to_thread(
+        manager.start_container,
+        candidate["image"],
+        standby_name,
+        config.app.port,
+        "v1",
+        config.app.name,
+        None,
+    )
+    standby_result = await validate_version(
+        "v1",
+        container_name=standby_name,
+        base_url=f"http://{standby_name}:{config.app.port}",
+    )
+    for check in standby_result.checks:
+        record(
+            f"Rollback standby validation: {check['status']} - "
+            f"{check['message']}"
+        )
+    if not standby_result.healthy:
+        await asyncio.to_thread(manager.remove_container, standby_name)
+        raise RuntimeError(
+            f"Could not validate the V1 rollback standby: "
+            f"{standby_result.message}"
+        )
+
+    traffic_router.set_version_target(
+        "v1",
+        standby_name,
+        standby_name,
+    )
+    try:
+        if await asyncio.to_thread(
+            manager.container_exists,
+            old_v1_container,
+        ):
+            await asyncio.to_thread(
+                manager.remove_container,
+                old_v1_container,
+            )
+            record(f"Removed old V1 container {old_v1_container}")
+    except Exception:
+        traffic_router.set_version_target(
+            "v1",
+            old_v1_target,
+            old_v1_container,
+        )
+        try:
+            await asyncio.to_thread(manager.remove_container, standby_name)
+        except (docker.errors.DockerException, ValueError) as cleanup_error:
+            record(
+                f"Could not remove temporary rollback standby "
+                f"{standby_name}: {cleanup_error}"
+            )
+        raise
+
+    deployment_state["active_version"] = "v2"
+    record(
+        f"V1 rollback standby prepared from promoted V2 image: {standby_name}"
+    )
+
+
+def persist_deployment_history() -> None:
+    started_at = deployment_state["started_at"]
+    finished_at = deployment_state["finished_at"]
+    # The config is validated when loaded. Keep recording the configured
+    # values here even if a runtime guard rejects them, so failure history
+    # cannot itself prevent cleanup and final status reporting.
+    stages = list(app.state.zerodown_config.rollout.stages)
+    entry = {
+        "deployment_id": deployment_state["deployment_id"],
+        "application": app.state.zerodown_config.app.name,
+        "status": deployment_state["phase"],
+        "old_version": deployment_state.get("old_version", "v1"),
+        "new_version": deployment_state.get("new_version", "v2"),
+        "start_time": started_at,
+        "end_time": finished_at,
+        "rollout_stages": list(stages),
+        "final_status": deployment_state["phase"],
+        "rollback_reason": (
+            deployment_state["rollback"].get("detail")
+            or deployment_state["rollback"].get("reason")
+            if deployment_state["rollback"]
+            else None
+        ),
+        "metrics_summary": copy.deepcopy(deployment_state["metrics"]),
+        "active_version": deployment_state["active_version"],
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "traffic": app.state.traffic_router.get_traffic(),
+        "metrics": copy.deepcopy(deployment_state["metrics"]),
+        "rollback": copy.deepcopy(deployment_state["rollback"]),
+        "events": copy.deepcopy(deployment_state["steps"]),
+        "targets": copy.deepcopy(app.state.traffic_router.targets),
+    }
+    deployment_history.append(entry)
+    if not DEPLOYMENT_HISTORY_PATH:
+        return
+    history_path = Path(DEPLOYMENT_HISTORY_PATH)
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    with history_path.open("a", encoding="utf-8") as history_file:
+        history_file.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
 # --------------------------------------------------
 # DEPLOYMENT PROCESS
 # --------------------------------------------------
@@ -679,6 +1026,9 @@ async def deployment_job(
 ):
 
     async with deployment_lock:
+        active_registry_auth.clear()
+        active_registry_auth.update(registry_auth or {})
+        old_version = deployment_state["active_version"]
         deployment_state["active"] = True
         deployment_state["deployment_id"] = (
             deployment_state.get("deployment_id") or str(uuid.uuid4())
@@ -691,6 +1041,10 @@ async def deployment_job(
         deployment_state["rollback"] = None
         deployment_state["candidate_logs"] = None
         deployment_state["container_name"] = None
+        deployment_state["demo_mode"] = simulate_failure
+        deployment_state["active_version"] = "v1"
+        deployment_state["old_version"] = old_version
+        deployment_state["new_version"] = "v2"
 
         deployment_state["started_at"] = (
             datetime.now(
@@ -703,10 +1057,18 @@ async def deployment_job(
             stages = validate_rollout_stages(
                 app.state.zerodown_config.rollout.stages
             )
+            if simulate_failure and not {10, 25, 50}.issubset(stages):
+                raise ValueError(
+                    "The deterministic failure demo requires rollout stages "
+                    "10%, 25%, and 50%"
+                )
             set_traffic(100, 0)
 
             if simulate_failure:
-                record("Failure demo armed: V2 starts healthy")
+                record(
+                    "Failure demo armed: V2 starts healthy and will fail "
+                    "deterministically during the 50% canary"
+                )
 
             record(
                 "Deployment started",
@@ -714,9 +1076,21 @@ async def deployment_job(
                 DeploymentPhase.BUILDING,
             )
             if image_ref is None:
-                await build_and_start_v2()
+                if simulate_failure:
+                    await build_and_start_v2(
+                        demo_failure_after_requests=demo_failure_after_requests()
+                    )
+                else:
+                    await build_and_start_v2()
             else:
-                await build_and_start_v2(image_ref, registry_auth)
+                if simulate_failure:
+                    await build_and_start_v2(
+                        image_ref,
+                        registry_auth,
+                        demo_failure_after_requests=demo_failure_after_requests(),
+                    )
+                else:
+                    await build_and_start_v2(image_ref, registry_auth)
 
             record(
                 "V2 container started; validating candidate",
@@ -764,20 +1138,14 @@ async def deployment_job(
                     stage_index / len(stages) * 100
                 )
 
-                failure_stage = min(2, len(stages))
-                if simulate_failure and stage_index == failure_stage:
-                    await set_v2_demo_failure(True)
-                    deployment_state["health"] = "unhealthy"
-                    record(
-                        f"Demo injected V2 health failure at V2={v2_percent}%"
-                    )
-
                 success, message = await monitor_canary(
                     v2_percent,
                     app.state.zerodown_config.rollout.stage_seconds,
+                    simulate_failure=simulate_failure and v2_percent == 50,
                 )
                 if not success:
                     deployment_state["health"] = "unhealthy"
+                    record(f"ZeroDown detected canary failure: {message}")
                     record(f"Canary stage failed: {message}")
                     rollback(
                         message,
@@ -802,6 +1170,7 @@ async def deployment_job(
             )
             if not success:
                 deployment_state["health"] = "unhealthy"
+                record(f"ZeroDown detected observation failure: {message}")
                 record(f"Observation failed: {message}")
                 rollback(
                     message,
@@ -810,11 +1179,13 @@ async def deployment_job(
                 )
                 return
 
+            await promote_v2_and_prepare_rollback()
             record(
-                f"V2 promoted to {stages[-1]}% traffic",
+                "V2 is ACTIVE at 100%",
                 "succeeded",
                 DeploymentPhase.SUCCESS,
             )
+            record("DEPLOYMENT SUCCESSFUL")
             deployment_state["phase"] = DeploymentPhase.SUCCESS.value
             deployment_state["progress"] = 100
 
@@ -869,6 +1240,11 @@ async def deployment_job(
                 ).isoformat()
             )
             deployment_state["active"] = False
+            try:
+                persist_deployment_history()
+            except OSError as error:
+                record(f"Deployment history could not be persisted: {error}")
+            active_registry_auth.clear()
             if app.state.deployment_task is asyncio.current_task():
                 app.state.deployment_task = None
 
@@ -885,18 +1261,26 @@ def deployment_dashboard():
 @app.get("/dashboard/proxy-health")
 async def dashboard_proxy_health():
     try:
+        endpoint = app.state.zerodown_config.health.endpoint
         async with httpx.AsyncClient(timeout=3) as client:
-            response = await client.get(f"{GATEWAY_URL}/health")
-        payload = response.json()
+            response = await client.get(f"{GATEWAY_URL}{endpoint}")
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
         return {
             "healthy": response.status_code == 200,
             "status_code": response.status_code,
-            "version": payload.get("version"),
+            "version": (
+                payload.get("version")
+                if isinstance(payload, dict)
+                else None
+            ),
         }
-    except Exception as error:
+    except httpx.HTTPError as error:
         return {
             "healthy": False,
-            "error": str(error),
+            "error": type(error).__name__,
         }
 
 
@@ -947,17 +1331,12 @@ def deployment_status():
 @app.get("/deployment/status")
 def deployment_progress_status():
     traffic = app.state.traffic_router.get_traffic()
-    state = deployment_state["status"]
-    stable_version = (
-        "v2"
-        if state == "succeeded" and traffic["v2_percent"] == 100
-        else "v1"
-    )
     return {
         "status": deployment_state["phase"],
         "application": app.state.zerodown_config.app.name,
         "deployment_id": deployment_state["deployment_id"],
-        "stable_version": stable_version,
+        "stable_version": deployment_state["active_version"],
+        "active_version": deployment_state["active_version"],
         "candidate_version": deployment_state["version"],
         "stages": list(app.state.zerodown_config.rollout.stages),
         "events": deployment_state["steps"],
@@ -968,10 +1347,16 @@ def deployment_progress_status():
         "metrics": deployment_state["metrics"],
         "rollback": deployment_state["rollback"],
         "candidate_logs": deployment_state["candidate_logs"],
+        "demo_mode": deployment_state["demo_mode"],
         "message": deployment_state["message"],
         "started_at": deployment_state["started_at"],
         "finished_at": deployment_state["finished_at"],
     }
+
+
+@app.get("/deployment/history")
+def get_deployment_history():
+    return {"deployments": list(reversed(deployment_history[-20:]))}
 
 
 # --------------------------------------------------
@@ -1019,7 +1404,7 @@ async def start_ci_deployment(
     request: DeployRequest,
     authorization: str | None = Header(default=None),
 ):
-    expected_token = os.getenv("ZERODOWN_DEPLOY_TOKEN")
+    expected_token = DEPLOY_TOKEN
     if not expected_token:
         raise HTTPException(
             status_code=503,
@@ -1034,7 +1419,7 @@ async def start_ci_deployment(
     if (
         request.image is None
         or not re.fullmatch(
-            r"ghcr\.io/[a-z0-9][a-z0-9._/-]*:[0-9a-f]{40}",
+            r"ghcr\.io/[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*:[0-9a-f]{40}",
             request.image,
         )
     ):
@@ -1087,7 +1472,16 @@ async def start_deployment(request: DeployRequest):
 
 @app.post("/demo/failure")
 async def start_failure_demo(request: DeployRequest | None = None):
-    """Run a canary, fail V2 during observation, and demonstrate rollback."""
+    """Run the deterministic failing-V2 demo and demonstrate rollback."""
+    stages = set(app.state.zerodown_config.rollout.stages)
+    if not {10, 25, 50}.issubset(stages):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The failure demo requires rollout stages 10%, 25%, and 50%; "
+                "update zerodown.yaml and restart the controller."
+            ),
+        )
     observation_seconds = (
         request.observation_seconds
         if request is not None
@@ -1097,7 +1491,11 @@ async def start_failure_demo(request: DeployRequest | None = None):
     schedule_deployment(observation_seconds, True)
     return {
         "accepted": True,
-        "message": "Failure demo started. V2 will fail during observation; check /status.",
+        "deployment_id": deployment_state["deployment_id"],
+        "message": (
+            "Deterministic failure demo started. V2 will return HTTP 500 "
+            "during the 50% canary; check /deployment/status."
+        ),
     }
 
 
@@ -1151,7 +1549,8 @@ async def manual_rollback():
             "failed",
             DeploymentPhase.FAILED,
         )
+        logger.error("Manual rollback failed: %s", type(error).__name__)
         raise HTTPException(
             status_code=500,
-            detail=str(error),
-        )
+            detail="Manual rollback failed",
+        ) from error

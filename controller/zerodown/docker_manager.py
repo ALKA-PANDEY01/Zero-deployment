@@ -119,7 +119,8 @@ class DockerManager:
         port: int,
         version: str,
         app_name: str,
-        host_port: int,
+        host_port: int | None,
+        extra_environment: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         self.validate_version(version)
         existing = self._container(name)
@@ -136,10 +137,15 @@ class DockerManager:
                 name=name,
                 detach=True,
                 network=self.network,
-                ports={f"{port}/tcp": ("127.0.0.1", host_port)},
+                ports=(
+                    {f"{port}/tcp": ("127.0.0.1", host_port)}
+                    if host_port is not None
+                    else None
+                ),
                 environment={
                     "APP_VERSION": version,
                     "APP_PORT": str(port),
+                    **(extra_environment or {}),
                 },
                 labels={
                     "com.zerodown.app": app_name,

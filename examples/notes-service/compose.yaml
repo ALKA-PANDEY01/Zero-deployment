@@ -1,0 +1,21 @@
+services:
+  app_v1:
+    build:
+      context: ./examples/notes-service
+      dockerfile: Dockerfile
+    image: zerodown/notes-service:local
+    container_name: zerodown-notes-service-v1
+    environment:
+      APP_VERSION: v1
+      APP_PORT: "8081"
+
+  proxy:
+    volumes:
+      - ./examples/notes-service/nginx.conf:/etc/nginx/nginx.conf:ro
+
+  controller:
+    environment:
+      ZERODOWN_CONFIG: /workspace/examples/notes-service/zerodown.yaml
+      ZERODOWN_V1_CONTAINER: zerodown-notes-service-v1
+    volumes:
+      - ./examples/notes-service/nginx.conf:/shared/nginx.conf

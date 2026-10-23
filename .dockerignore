@@ -1,0 +1,15 @@
+.git
+.venv
+venv
+__pycache__
+.pytest_cache
+actions-runner
+data
+secrets
+tests
+examples
+app
+proxy
+*.pyc
+.env
+.env.*

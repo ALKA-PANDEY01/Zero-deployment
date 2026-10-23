@@ -53,3 +53,22 @@ def test_api_data():
     assert response.status_code == 200
     assert response.json()["version"] == "test"
     assert response.json()["message"]
+
+
+def test_demo_fault_is_deterministic_and_does_not_break_health(monkeypatch):
+    monkeypatch.setattr(main, "APP_VERSION", "v2")
+    monkeypatch.setattr(main, "DEMO_FAILURE_AFTER_REQUESTS", 2)
+    monkeypatch.setattr(main, "demo_home_requests", 0)
+
+    assert client.get("/").status_code == 200
+    assert client.get("/").status_code == 200
+    failed = client.get("/")
+
+    assert failed.status_code == 500
+    assert failed.json()["detail"] == (
+        "Deterministic ZeroDown rollback demonstration failure"
+    )
+    assert client.get("/health").status_code == 200
+
+    monkeypatch.setattr(main, "APP_VERSION", "v1")
+    assert client.get("/").status_code == 200

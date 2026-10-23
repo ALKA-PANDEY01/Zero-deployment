@@ -46,10 +46,9 @@ class FakeDockerManager:
 
 
 class FakeResponse:
-    status_code = 200
-
-    def __init__(self, payload):
+    def __init__(self, payload, status_code=200):
         self.payload = payload
+        self.status_code = status_code
 
     def json(self):
         return self.payload
@@ -109,15 +108,12 @@ def make_checker(
 def healthy_outcomes(smoke_endpoints=()):
     outcomes = {
         "http://zerodown-demo-app-v2:8000/health": [
-            FakeResponse({"status": "ok", "version": "v2"}),
-        ],
-        "http://zerodown-demo-app-v2:8000/version": [
-            FakeResponse({"version": "v2"}),
+            FakeResponse({"status": "ok"}),
         ],
     }
     for endpoint in smoke_endpoints:
         outcomes[f"http://zerodown-demo-app-v2:8000{endpoint}"] = [
-            FakeResponse({"version": "v2"}),
+            FakeResponse({"status": "ok"}),
         ]
     return outcomes
 
@@ -125,13 +121,10 @@ def healthy_outcomes(smoke_endpoints=()):
 def test_configured_health_endpoint_and_smoke_endpoints_are_checked(monkeypatch):
     outcomes = {
         "http://zerodown-demo-app-v2:8000/live": [
-            FakeResponse({"version": "v2"}),
-        ],
-        "http://zerodown-demo-app-v2:8000/version": [
-            FakeResponse({"version": "v2"}),
+            FakeResponse("ready"),
         ],
         "http://zerodown-demo-app-v2:8000/smoke": [
-            FakeResponse({"version": "v2"}),
+            FakeResponse("smoke passed"),
         ],
     }
     checker, calls = make_checker(
@@ -146,7 +139,6 @@ def test_configured_health_endpoint_and_smoke_endpoints_are_checked(monkeypatch)
     assert result.status is ValidationStatus.HEALTHY
     assert calls == [
         "http://zerodown-demo-app-v2:8000/live",
-        "http://zerodown-demo-app-v2:8000/version",
         "http://zerodown-demo-app-v2:8000/smoke",
     ]
 
@@ -161,10 +153,37 @@ def test_healthy_v2_passes_container_health_and_http_smoke_checks(monkeypatch):
     assert [check["check"] for check in result.checks] == [
         "container_health",
         "health",
-        "version",
         "smoke",
     ]
-    assert len(calls) == 3
+    assert len(calls) == 2
+
+
+def test_generic_application_without_version_endpoint_passes_configured_checks(
+    monkeypatch,
+):
+    outcomes = {
+        "http://zerodown-demo-app-v2:8000/ready": [FakeResponse("ready")],
+        "http://zerodown-demo-app-v2:8000/": [FakeResponse("notes service")],
+    }
+    checker, calls = make_checker(
+        monkeypatch,
+        outcomes,
+        smoke_endpoints=("/",),
+        health_endpoint="/ready",
+    )
+
+    result = asyncio.run(checker.validate_version("v2"))
+
+    assert result.status is ValidationStatus.HEALTHY
+    assert [check["check"] for check in result.checks] == [
+        "container_health",
+        "health",
+        "smoke",
+    ]
+    assert calls == [
+        "http://zerodown-demo-app-v2:8000/ready",
+        "http://zerodown-demo-app-v2:8000/",
+    ]
 
 
 def test_unhealthy_container_fails_before_http_requests(monkeypatch):
@@ -220,23 +239,10 @@ def test_http_unavailable_is_retried_and_reported(monkeypatch):
     assert calls.count("http://zerodown-demo-app-v2:8000/health") == 2
 
 
-def test_wrong_version_response_is_reported_unhealthy(monkeypatch):
-    outcomes = healthy_outcomes()
-    outcomes["http://zerodown-demo-app-v2:8000/version"] = [
-        FakeResponse({"version": "v1"}),
-    ]
-    checker, _ = make_checker(monkeypatch, outcomes, attempts=1)
-
-    result = asyncio.run(checker.validate_version("v2"))
-
-    assert result.status is ValidationStatus.UNHEALTHY
-    assert "Expected version 'v2', got 'v1'" in result.message
-
-
 def test_failed_smoke_endpoint_has_distinct_result(monkeypatch):
     outcomes = healthy_outcomes(("/ready",))
     outcomes["http://zerodown-demo-app-v2:8000/ready"] = [
-        FakeResponse({"version": "v1"}),
+        FakeResponse("not ready", status_code=503),
     ]
     checker, _ = make_checker(
         monkeypatch,
