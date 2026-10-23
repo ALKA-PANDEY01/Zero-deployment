@@ -65,6 +65,8 @@ services:
       ZERODOWN_DOCKER_NETWORK: zerodown
       RISK_TELEMETRY_PATH: /data/risk-telemetry.jsonl
       ZERODOWN_DEPLOYMENT_HISTORY_PATH: /data/deployment-history.jsonl
+      ZERODOWN_DEPLOYMENT_RUNTIME_PATH: /data/deployment-runtime.json
+      ZERODOWN_BOOTSTRAP_STABLE: "true"
       ZERODOWN_DEPLOY_TOKEN: ${ZERODOWN_DEPLOY_TOKEN:-}
       ZERODOWN_DEPLOY_TOKEN_FILE: ${ZERODOWN_DEPLOY_TOKEN_FILE:-/run/secrets/zerodown-deploy-token}
       ZERODOWN_AUTH_REQUIRED: ${ZERODOWN_AUTH_REQUIRED:-true}

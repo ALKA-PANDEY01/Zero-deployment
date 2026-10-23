@@ -82,6 +82,7 @@ app:
 
 health:
   endpoint: /health
+  canary_endpoint: /
   smoke_endpoints:
     - /ready
     - /api/data
@@ -102,7 +103,10 @@ limits:
 The controller validates the YAML during startup and reports the invalid field
 when the configuration cannot be loaded. See
 [`examples/notes-service/zerodown.yaml`](examples/notes-service/zerodown.yaml)
-for a second application using a different port and health endpoint.
+for a second application using a different port and health endpoint. The
+optional `health.canary_endpoint` selects the path for synthetic requests sent
+through the gateway during monitoring; it defaults to the first smoke endpoint
+or the health endpoint.
 
 ## 7. Local setup
 
@@ -174,6 +178,44 @@ port, and health checks. Use **Deploy V2** to build its candidate. To return to
 the main demo, run `docker compose down` and then `docker compose up --build -d`.
 The same local deployment token and history directory are used by both demos.
 
+### Use ZeroDown with your own application
+
+The controller does not need application-specific Python code. To onboard an
+application, provide a Dockerfile and `zerodown.yaml`; ZeroDown builds and
+starts the initial V1 container from that configuration when the controller
+starts. The notes-service directory is a working template; copy it and replace
+its app name, paths, port, and health checks.
+
+1. Put the app under `examples/<your-app>/` (the default Compose setup mounts
+   `examples/` into the controller at `/workspace/examples/`).
+2. Set `app.name`, `build_context`, `dockerfile`, and `port` in
+   `zerodown.yaml`. `build_context` is relative to `/workspace`; the Dockerfile
+   path is relative to that build context.
+3. Set `health.endpoint` to an endpoint that returns HTTP 2xx when the app is
+   ready. Add lightweight `smoke_endpoints` that should also return HTTP 2xx.
+   Keep the candidate listening on the configured container port.
+4. Add a Docker `HEALTHCHECK` to the Dockerfile. It must return success when
+   the app is ready on the configured container port. ZeroDown also calls the
+   configured health and smoke-test paths over HTTP.
+5. Set `ZERODOWN_CONFIG` to the config path mounted in the controller and
+   restart the controller. For an app under `examples/my-service`, run:
+
+   ```powershell
+   $env:ZERODOWN_CONFIG = '/workspace/examples/my-service/zerodown.yaml'
+   docker compose up --build -d
+   ```
+
+   Replace `my-service` with your app directory. The host directory must be
+   available through the existing `examples/` mount.
+
+ZeroDown derives image and container names from `app.name`, builds V1 on
+controller startup when no healthy V1 exists, and builds V2 for each local
+deployment. It writes the configured port and live version targets into the
+shared NGINX config. The same controller, rollout, checks, and traffic
+management code is used for the demo app, notes service, and other configured
+applications. The application still needs to listen on its configured port and
+provide the declared health checks.
+
 ## 9. GitHub Actions setup
 
 The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
@@ -189,6 +231,20 @@ Configure these repository secrets:
 | --- | --- |
 | `ZERODOWN_URL` | HTTPS URL of the controller reachable by the runner. Local HTTP is accepted only for localhost. |
 | `ZERODOWN_DEPLOY_TOKEN` | Bearer token matching the controller's configured token. |
+
+For an application other than the bundled demo, set these repository variables:
+
+| Variable | Example |
+| --- | --- |
+| `ZERODOWN_APP_BUILD_CONTEXT` | `./examples/my-service` |
+| `ZERODOWN_APP_DOCKERFILE` | `./examples/my-service/Dockerfile` |
+
+Configure the self-hosted runner's local `.env` with the matching mounted
+controller config path, such as
+`ZERODOWN_CONFIG=/workspace/examples/my-service/zerodown.yaml`. The workflow
+always runs controller/configuration tests; its bundled Compose E2E checks run
+only for the default demo app because they assert that demo's routes and
+responses.
 
 The workflow uses GitHub's `GITHUB_TOKEN` for GHCR publishing and passes the
 same credentials to the controller only in the authenticated image deployment
@@ -231,8 +287,9 @@ when a deployment is in progress or V2 currently receives traffic.
 - **Deployment status** reports the controller phase and gateway health.
 - **V1 / V2 cards** show container state, role, and traffic share.
 - **Rollout progression** marks configured percentages and current progress.
-- **Live safety metrics** show the latest observed error rate, P95 latency,
-  CPU, memory, and health result. Values appear when observations are available.
+- **Canary safety metrics** show error rate and P95 latency from synthetic
+  requests sent through NGINX, plus CPU and memory from Docker stats. Values
+  appear while rollout monitoring runs.
 - **Deployment event log** shows recent steps and diagnostic messages.
 - **Recent deployment history** shows final status, version change, duration,
   metrics summary, and rollback reason when present.
@@ -261,8 +318,13 @@ demo, not a replacement for them.
   short or low-volume demonstrations will not produce exact percentages.
 - Safety measurements are local rollout observations, not a durable metrics
   service or long-term monitoring system.
+- The risk score is fit from illustrative sample cases. It is not a calibrated
+  production failure probability; configured error, latency, CPU, and memory
+  limits are evaluated directly against observed values.
 - Deployment history is an append-only JSON Lines file, not a database or
   multi-writer store.
+- The controller stores a small runtime snapshot so a restart during rollout
+  can restore V1 traffic and record the interrupted deployment.
 - The GitHub workflow requires a self-hosted runner and a reachable ZeroDown
   controller; this repository does not provision that infrastructure.
 - The controller has access to the Docker socket to manage containers. Treat

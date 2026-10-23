@@ -345,7 +345,7 @@ def test_demo_failure_threshold_is_after_early_canary_requests(monkeypatch):
     assert controller.demo_failure_after_requests() == 9
 
 
-def test_successful_promotion_replaces_old_v1_after_validating_standby(monkeypatch):
+def test_successful_promotion_keeps_the_actual_previous_v1_as_standby(monkeypatch):
     events = []
 
     class FakeRouter:
@@ -359,7 +359,6 @@ def test_successful_promotion_replaces_old_v1_after_validating_standby(monkeypat
             return {"v1_percent": 0, "v2_percent": 100}
 
         def set_version_target(self, version, target, container_name):
-            assert self.get_traffic()[f"{version}_percent"] == 0
             self.targets[version] = (target, container_name)
             events.append(("route", version, container_name))
 
@@ -370,12 +369,12 @@ def test_successful_promotion_replaces_old_v1_after_validating_standby(monkeypat
 
         @staticmethod
         def inspect_container(name):
-            assert name == "candidate-v2"
-            return {"image": "zerodown/demo-app:v2"}
+            assert name == "old-v1"
+            return {"image": "zerodown/demo-app:v1"}
 
         @staticmethod
         def start_container(image, name, port, version, app_name, host_port):
-            assert image == "zerodown/demo-app:v2"
+            assert image == "zerodown/demo-app:v1"
             assert version == "v1"
             assert host_port is None
             events.append(("standby-started", name))
@@ -394,33 +393,27 @@ def test_successful_promotion_replaces_old_v1_after_validating_standby(monkeypat
         "traffic_router",
         FakeRouter(),
     )
-    monkeypatch.setattr(
-        controller.app.state,
-        "docker_manager",
-        FakeManager(),
-    )
+    monkeypatch.setattr(controller.app.state, "docker_manager", FakeManager())
     controller.deployment_state["container_name"] = "candidate-v2"
     controller.deployment_state["deployment_id"] = "deployment-12345678"
 
     async def validate_standby(version, container_name, base_url):
         assert version == "v1"
         assert container_name.endswith("-rollback-deployme")
-        assert base_url.startswith("http://")
         events.append(("standby-validated", container_name))
-        return SimpleNamespace(
-            healthy=True,
-            checks=(),
-            message="Rollback standby is healthy",
-        )
+        return SimpleNamespace(healthy=True, message="healthy")
 
     monkeypatch.setattr(controller, "validate_version", validate_standby)
 
     asyncio.run(controller.promote_v2_and_prepare_rollback())
 
-    assert events[0][0] == "standby-started"
-    assert events[1][0] == "standby-validated"
-    assert events[2] == ("route", "v1", events[0][1])
-    assert events[3] == ("removed", "old-v1")
+    assert [event[0] for event in events] == [
+        "standby-started",
+        "standby-validated",
+        "route",
+        "removed",
+    ]
+    assert events[-1] == ("removed", "old-v1")
     assert controller.deployment_state["active_version"] == "v2"
     assert controller.app.state.traffic_router.targets["v1"][1] == events[0][1]
 

@@ -1,11 +1,11 @@
 import asyncio
 import copy
-import hmac
 import json
 import logging
 import math
 import os
 import re
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -99,6 +99,10 @@ def parse_bool_env(name: str, default: bool = False) -> bool:
 
 @asynccontextmanager
 async def lifespan(application):
+    if RECOVER_DEPLOYMENT:
+        recover_last_deployment()
+    if BOOTSTRAP_STABLE:
+        await ensure_stable_application()
     yield
     task = application.state.deployment_task
     if task is not None and not task.done():
@@ -141,6 +145,123 @@ app.state.docker_manager = DockerManager(
 app.include_router(architecture_api)
 
 
+async def ensure_stable_application() -> None:
+    """Build and validate the configured V1 when no stable container exists."""
+    config = app.state.zerodown_config
+    manager = app.state.docker_manager
+    router = app.state.traffic_router
+    target, container_name = router.targets["v1"]
+
+    try:
+        details = await asyncio.to_thread(manager.inspect_container, container_name)
+        stable_ready = (
+            details.get("status") == "running"
+            and details.get("health") == "healthy"
+        )
+    except (ValueError, docker.errors.DockerException):
+        stable_ready = False
+
+    if not stable_ready:
+        container_name = manager.container_name(config.app.name, "v1")
+        image_tag = manager.image_tag(config.app.name, "v1")
+        if await asyncio.to_thread(manager.container_exists, container_name):
+            await asyncio.to_thread(manager.remove_container, container_name)
+        await asyncio.to_thread(
+            manager.build_image,
+            config.app.build_context,
+            config.app.dockerfile,
+            image_tag,
+        )
+        await asyncio.to_thread(
+            manager.start_container,
+            image_tag,
+            container_name,
+            config.app.port,
+            "v1",
+            config.app.name,
+            manager.host_port("v1"),
+        )
+        target = container_name
+        record("Built and started the configured V1 stable application")
+
+    result = await validate_version(
+        "v1",
+        container_name=container_name,
+        base_url=f"http://{target}:{config.app.port}",
+    )
+    if not result.healthy:
+        raise RuntimeError(f"Configured V1 is not healthy: {result.message}")
+
+    if router.targets["v1"] != (target, container_name):
+        current = router.targets["v2"]
+        router.restore_targets(
+            {"v1": (target, container_name), "v2": current}
+        )
+    interrupted = getattr(app.state, "interrupted_deployment", None)
+    if interrupted:
+        traffic_at_failure = router.get_traffic()["v2_percent"]
+        rollback(
+            "Controller restarted during an active deployment",
+            traffic_at_failure=traffic_at_failure,
+            cleanup_candidate=True,
+        )
+        deployment_state["finished_at"] = datetime.now(timezone.utc).isoformat()
+        deployment_state["active"] = False
+        deployment_state["health"] = "unknown"
+        persist_deployment_history()
+        persist_runtime_state(active=False)
+        app.state.interrupted_deployment = None
+    elif deployment_state.get("active_version") == "v2":
+        v2_target, v2_container = router.targets["v2"]
+        candidate_result = await validate_version(
+            "v2",
+            container_name=v2_container,
+            base_url=f"http://{v2_target}:{config.app.port}",
+        )
+        if candidate_result.healthy:
+            if router.get_traffic() != {"v1_percent": 0, "v2_percent": 100}:
+                await asyncio.to_thread(router.set_percentages, 0, 100)
+        else:
+            await asyncio.to_thread(router.set_percentages, 100, 0)
+            now = datetime.now(timezone.utc).isoformat()
+            deployment_state.update(
+                {
+                    "deployment_id": str(uuid.uuid4()),
+                    "started_at": now,
+                    "old_version": "v2",
+                    "new_version": "v1",
+                    "steps": [],
+                    "phase": DeploymentPhase.ROLLBACK.value,
+                    "status": "rolled_back",
+                    "message": "Unhealthy active version after restart; V1 restored",
+                    "health": "unhealthy",
+                    "finished_at": now,
+                    "rollback": {
+                        "status": DeploymentPhase.ROLLBACK.value,
+                        "reason": "health_check_failed_after_restart",
+                        "detail": candidate_result.message,
+                        "failed_version": "v2",
+                        "traffic_at_failure": 100,
+                        "stable_version": "v1",
+                    },
+                    "active_version": "v1",
+                    "traffic": 0,
+                }
+            )
+            record(
+                "Active V2 failed its restart health check; V1 restored",
+                "rolled_back",
+                DeploymentPhase.ROLLBACK,
+            )
+            persist_deployment_history()
+    elif router.get_traffic() != {"v1_percent": 100, "v2_percent": 0}:
+        await asyncio.to_thread(router.set_percentages, 100, 0)
+    logger.info(
+        "Stable application is ready",
+        extra={"event": "stable_application_ready", "phase": "IDLE"},
+    )
+
+
 # --------------------------------------------------
 # CONFIGURATION
 # --------------------------------------------------
@@ -168,8 +289,19 @@ DEPLOYMENT_HISTORY_PATH = os.getenv(
     "ZERODOWN_DEPLOYMENT_HISTORY_PATH",
     str(Path(__file__).resolve().parents[1] / "data" / "deployment-history.jsonl"),
 )
+DEPLOYMENT_RUNTIME_PATH = os.getenv("ZERODOWN_DEPLOYMENT_RUNTIME_PATH")
+BOOTSTRAP_STABLE = parse_bool_env("ZERODOWN_BOOTSTRAP_STABLE", default=False)
+RECOVER_DEPLOYMENT = parse_bool_env(
+    "ZERODOWN_RECOVER_DEPLOYMENT",
+    default=bool(DEPLOYMENT_RUNTIME_PATH),
+)
 DEPLOY_TOKEN = read_secret("ZERODOWN_DEPLOY_TOKEN", "ZERODOWN_DEPLOY_TOKEN_FILE")
 AUTH_REQUIRED = parse_bool_env("ZERODOWN_AUTH_REQUIRED", default=False)
+logger.info(
+    "Deployment token loaded: %s (length: %d)",
+    bool(DEPLOY_TOKEN),
+    len(DEPLOY_TOKEN) if DEPLOY_TOKEN else 0,
+)
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.getenv("ZERODOWN_CORS_ORIGINS", "").split(",")
@@ -234,7 +366,7 @@ async def protect_mutating_apis(request: Request, call_next):
         else:
             supplied = request.headers.get("authorization", "")
             expected = f"Bearer {DEPLOY_TOKEN}"
-            if not hmac.compare_digest(supplied.encode(), expected.encode()):
+            if not secrets.compare_digest(supplied.encode(), expected.encode()):
                 response = JSONResponse(
                     status_code=401,
                     content={"detail": "Invalid deployment token"},
@@ -287,14 +419,31 @@ def load_deployment_history() -> list[dict]:
 
 
 deployment_history = load_deployment_history()
+app.state.interrupted_deployment = None
 
 app.state.traffic_router = NginxTrafficRouter(
     config_path=Path(CONFIG),
     proxy_container=PROXY_CONTAINER,
-    v1_target=os.getenv("ZERODOWN_V1_TARGET", "app_v1"),
-    v2_target=os.getenv("ZERODOWN_V2_TARGET", "app_v2"),
-    v1_container=os.getenv("ZERODOWN_V1_CONTAINER", "zerodown-app-v1"),
-    v2_container=os.getenv("ZERODOWN_V2_CONTAINER", "zerodown-app-v2"),
+    v1_target=os.getenv(
+        "ZERODOWN_V1_TARGET",
+        "app_v1" if app.state.zerodown_config.app.name == "demo-app"
+        else app.state.docker_manager.container_name(app.state.zerodown_config.app.name, "v1"),
+    ),
+    v2_target=os.getenv(
+        "ZERODOWN_V2_TARGET",
+        "app_v2" if app.state.zerodown_config.app.name == "demo-app"
+        else app.state.docker_manager.container_name(app.state.zerodown_config.app.name, "v2"),
+    ),
+    v1_container=os.getenv(
+        "ZERODOWN_V1_CONTAINER",
+        "zerodown-app-v1" if app.state.zerodown_config.app.name == "demo-app"
+        else app.state.docker_manager.container_name(app.state.zerodown_config.app.name, "v1"),
+    ),
+    v2_container=os.getenv(
+        "ZERODOWN_V2_CONTAINER",
+        "zerodown-app-v2" if app.state.zerodown_config.app.name == "demo-app"
+        else app.state.docker_manager.container_name(app.state.zerodown_config.app.name, "v2"),
+    ),
     app_port=app.state.zerodown_config.app.port,
 )
 app.state.version_health_checker = VersionHealthChecker(
@@ -330,6 +479,131 @@ deployment_state = {
 }
 if app.state.traffic_router.get_traffic()["v2_percent"] == 100:
     deployment_state["active_version"] = "v2"
+
+
+def recover_last_deployment() -> None:
+    """Restore the last completed deployment and its dynamic Docker targets."""
+    app_name = app.state.zerodown_config.app.name
+    entry = next(
+        (
+            item
+            for item in reversed(deployment_history)
+            if item.get("application") == app_name
+            and item.get("final_status") in {"SUCCESS", "ROLLBACK", "FAILED"}
+        ),
+        None,
+    )
+    runtime = load_deployment_runtime()
+    if entry is None:
+        if runtime and runtime.get("active") and runtime.get("application") == app_name:
+            targets = runtime.get("targets")
+            if isinstance(targets, dict) and set(targets) == {"v1", "v2"}:
+                try:
+                    app.state.traffic_router.restore_targets(targets)
+                except (TypeError, ValueError) as error:
+                    logger.warning("Could not restore interrupted deployment targets: %s", error)
+            deployment_state.update(
+                {
+                    "deployment_id": runtime.get("deployment_id"),
+                    "started_at": runtime.get("started_at"),
+                    "old_version": runtime.get("old_version", "v1"),
+                    "new_version": "v2",
+                    "active_version": "v1",
+                    "container_name": app.state.traffic_router.targets["v2"][1],
+                    "steps": [],
+                    "rollback": None,
+                }
+            )
+            app.state.interrupted_deployment = runtime
+        return
+
+    targets = entry.get("targets")
+    if isinstance(targets, dict) and set(targets) == {"v1", "v2"}:
+        try:
+            app.state.traffic_router.restore_targets(targets)
+        except (TypeError, ValueError) as error:
+            logger.warning("Could not restore deployment targets: %s", error)
+
+    phase = entry.get("final_status", "IDLE")
+    active_version = entry.get("active_version")
+    if active_version not in {"v1", "v2"}:
+        active_version = "v2" if phase == "SUCCESS" else "v1"
+    deployment_state.update(
+        {
+            "status": {"SUCCESS": "succeeded", "ROLLBACK": "rolled_back", "FAILED": "failed"}.get(phase, "idle"),
+            "phase": phase,
+            "message": f"Restored deployment {entry.get('deployment_id', '')} after restart",
+            "steps": copy.deepcopy(entry.get("events", [])),
+            "started_at": entry.get("start_time"),
+            "finished_at": entry.get("end_time"),
+            "deployment_id": entry.get("deployment_id"),
+            "traffic": app.state.traffic_router.get_traffic().get("v2_percent", 0),
+            "health": "healthy" if phase == "SUCCESS" else "unknown",
+            "progress": 100 if phase == "SUCCESS" else 0,
+            "metrics": copy.deepcopy(entry.get("metrics_summary", {})),
+            "rollback": copy.deepcopy(entry.get("rollback")),
+            "candidate_logs": entry.get("candidate_logs"),
+            "active": False,
+            "container_name": app.state.traffic_router.targets["v2"][1],
+            "active_version": active_version,
+        }
+    )
+    app.state.deployment_state_store.set_phase(
+        DeploymentPhase(phase),
+        deployment_state["message"],
+    )
+    if runtime and runtime.get("active") and runtime.get("application") == app_name:
+        targets = runtime.get("targets")
+        if isinstance(targets, dict) and set(targets) == {"v1", "v2"}:
+            try:
+                app.state.traffic_router.restore_targets(targets)
+            except (TypeError, ValueError) as error:
+                logger.warning("Could not restore interrupted deployment targets: %s", error)
+        deployment_state.update(
+            {
+                "deployment_id": runtime.get("deployment_id"),
+                "started_at": runtime.get("started_at"),
+                "old_version": runtime.get("old_version", "v1"),
+                "new_version": "v2",
+                "active_version": "v1",
+                "container_name": app.state.traffic_router.targets["v2"][1],
+                "steps": [],
+                "rollback": None,
+            }
+        )
+        app.state.interrupted_deployment = runtime
+
+
+def load_deployment_runtime() -> dict | None:
+    if not DEPLOYMENT_RUNTIME_PATH:
+        return None
+    try:
+        with Path(DEPLOYMENT_RUNTIME_PATH).open(encoding="utf-8") as runtime_file:
+            value = json.load(runtime_file)
+        return value if isinstance(value, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def persist_runtime_state(active: bool) -> None:
+    if not DEPLOYMENT_RUNTIME_PATH:
+        return
+    path = Path(DEPLOYMENT_RUNTIME_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    state = {
+        "application": app.state.zerodown_config.app.name,
+        "active": active,
+        "deployment_id": deployment_state.get("deployment_id"),
+        "started_at": deployment_state.get("started_at"),
+        "old_version": deployment_state.get("old_version", "v1"),
+        "active_version": deployment_state.get("active_version", "v1"),
+        "phase": deployment_state.get("phase", "IDLE"),
+        "targets": copy.deepcopy(app.state.traffic_router.targets),
+        "traffic": app.state.traffic_router.get_traffic(),
+    }
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    temporary_path.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+    os.replace(temporary_path, path)
 
 
 deployment_lock = asyncio.Lock()
@@ -521,7 +795,7 @@ async def check_endpoint(
     try:
         async with httpx.AsyncClient(timeout=3) as client:
             response = await client.get(f"{base_url}{path}")
-        if response.status_code != 200:
+        if not 200 <= response.status_code < 300:
             return False, f"{path} returned HTTP {response.status_code}"
         return True, f"{path} passed"
     except httpx.HTTPError as error:
@@ -627,11 +901,11 @@ async def score_canary_metrics(metrics):
         except OSError as error:
             record(f"Risk telemetry could not be saved: {error}")
     record(
-        f"Deployment risk: {prediction['risk_percent']}% - "
+        f"Deployment risk score: {prediction['risk_percent']}% - "
         f"{prediction['risk_level']}"
     )
     record(
-        "ML metrics: "
+        "Canary observations: "
         f"CPU={metrics.get('cpu_percent')}, "
         f"memory={metrics.get('memory_percent')}, "
         f"p95_latency_ms={metrics.get('p95_latency_ms', 0):.1f}, "
@@ -676,7 +950,7 @@ def safety_limit_failure(metrics, prediction):
     risk_percent = prediction["probability"] * 100
     if risk_percent >= limits.max_risk_percent:
         return (
-            f"ML risk {prediction['risk_percent']}% "
+            f"Risk score {prediction['risk_percent']}% "
             f"{prediction['risk_level']} exceeded the "
             f"{limits.max_risk_percent:.1f}% limit"
         )
@@ -688,7 +962,7 @@ async def monitor_canary(
     observation_seconds: float,
     simulate_failure: bool = False,
 ):
-    """Sample release signals and stop the canary when predicted risk is high."""
+    """Sample gateway and container signals during a canary stage."""
     requests = 0
     errors = 0
     server_errors = 0
@@ -703,12 +977,10 @@ async def monitor_canary(
 
     async with httpx.AsyncClient(timeout=2) as client:
         while time.monotonic() < deadline:
-            health_started = time.perf_counter()
             healthy, health_message = await check_endpoint(
                 candidate_app_url(),
                 app.state.zerodown_config.health.endpoint,
             )
-            latencies_ms.append((time.perf_counter() - health_started) * 1000)
             health_checks += 1
             if not healthy:
                 health_failures += 1
@@ -729,15 +1001,21 @@ async def monitor_canary(
                     f"{health_message}"
                 )
                 return False, (
-                    f"{health_message}; ML risk "
+                    f"{health_message}; risk score "
                     f"{prediction['risk_percent']}% {prediction['risk_level']}"
                 )
 
             requests += 1
             try:
-                response = await client.get(f"{GATEWAY_URL}/")
+                # Use an endpoint declared by the application instead of
+                # assuming every application implements GET /.
+                canary_path = (
+                    app.state.zerodown_config.health.canary_endpoint
+                    or app.state.zerodown_config.health.endpoint
+                )
+                response = await client.get(f"{GATEWAY_URL}{canary_path}")
                 latencies_ms.append(response.elapsed.total_seconds() * 1000)
-                if response.status_code != 200:
+                if not 200 <= response.status_code < 300:
                     errors += 1
                     if response.status_code >= 500:
                         server_errors += 1
@@ -828,7 +1106,7 @@ def rollback(
         traffic_at_failure = app.state.traffic_router.get_traffic()["v2_percent"]
     reason_code = reason_code_for(reason)
     record(
-        "Starting automatic rollback",
+        "Starting rollback",
         "rolling_back",
         DeploymentPhase.ROLLBACK,
     )
@@ -900,11 +1178,10 @@ async def promote_v2_and_prepare_rollback() -> None:
 
     manager = app.state.docker_manager
     config = app.state.zerodown_config
-    candidate_name = deployment_state["container_name"]
     old_v1_target, old_v1_container = traffic_router.targets["v1"]
-    candidate = await asyncio.to_thread(
+    old_v1 = await asyncio.to_thread(
         manager.inspect_container,
-        candidate_name,
+        old_v1_container,
     )
     standby_name = (
         f"{manager.container_name(config.app.name, 'v1')}-rollback-"
@@ -912,7 +1189,7 @@ async def promote_v2_and_prepare_rollback() -> None:
     )
     await asyncio.to_thread(
         manager.start_container,
-        candidate["image"],
+        old_v1["image"],
         standby_name,
         config.app.port,
         "v1",
@@ -924,11 +1201,6 @@ async def promote_v2_and_prepare_rollback() -> None:
         container_name=standby_name,
         base_url=f"http://{standby_name}:{config.app.port}",
     )
-    for check in standby_result.checks:
-        record(
-            f"Rollback standby validation: {check['status']} - "
-            f"{check['message']}"
-        )
     if not standby_result.healthy:
         await asyncio.to_thread(manager.remove_container, standby_name)
         raise RuntimeError(
@@ -936,27 +1208,13 @@ async def promote_v2_and_prepare_rollback() -> None:
             f"{standby_result.message}"
         )
 
-    traffic_router.set_version_target(
-        "v1",
-        standby_name,
-        standby_name,
-    )
+    traffic_router.set_version_target("v1", standby_name, standby_name)
     try:
-        if await asyncio.to_thread(
-            manager.container_exists,
-            old_v1_container,
-        ):
-            await asyncio.to_thread(
-                manager.remove_container,
-                old_v1_container,
-            )
+        if await asyncio.to_thread(manager.container_exists, old_v1_container):
+            await asyncio.to_thread(manager.remove_container, old_v1_container)
             record(f"Removed old V1 container {old_v1_container}")
     except Exception:
-        traffic_router.set_version_target(
-            "v1",
-            old_v1_target,
-            old_v1_container,
-        )
+        traffic_router.set_version_target("v1", old_v1_target, old_v1_container)
         try:
             await asyncio.to_thread(manager.remove_container, standby_name)
         except (docker.errors.DockerException, ValueError) as cleanup_error:
@@ -967,9 +1225,7 @@ async def promote_v2_and_prepare_rollback() -> None:
         raise
 
     deployment_state["active_version"] = "v2"
-    record(
-        f"V1 rollback standby prepared from promoted V2 image: {standby_name}"
-    )
+    record(f"Previous V1 image preserved in rollback standby {standby_name}")
 
 
 def persist_deployment_history() -> None:
@@ -1002,6 +1258,7 @@ def persist_deployment_history() -> None:
         "traffic": app.state.traffic_router.get_traffic(),
         "metrics": copy.deepcopy(deployment_state["metrics"]),
         "rollback": copy.deepcopy(deployment_state["rollback"]),
+        "candidate_logs": deployment_state.get("candidate_logs"),
         "events": copy.deepcopy(deployment_state["steps"]),
         "targets": copy.deepcopy(app.state.traffic_router.targets),
     }
@@ -1054,6 +1311,7 @@ async def deployment_job(
         deployment_state["finished_at"] = None
 
         try:
+            persist_runtime_state(active=True)
             stages = validate_rollout_stages(
                 app.state.zerodown_config.rollout.stages
             )
@@ -1244,6 +1502,10 @@ async def deployment_job(
                 persist_deployment_history()
             except OSError as error:
                 record(f"Deployment history could not be persisted: {error}")
+            try:
+                persist_runtime_state(active=False)
+            except OSError as error:
+                logger.error("Deployment runtime state could not be saved: %s", type(error).__name__)
             active_registry_auth.clear()
             if app.state.deployment_task is asyncio.current_task():
                 app.state.deployment_task = None
@@ -1269,7 +1531,7 @@ async def dashboard_proxy_health():
         except ValueError:
             payload = {}
         return {
-            "healthy": response.status_code == 200,
+            "healthy": 200 <= response.status_code < 300,
             "status_code": response.status_code,
             "version": (
                 payload.get("version")
@@ -1410,7 +1672,7 @@ async def start_ci_deployment(
             status_code=503,
             detail="CI deployment trigger is not configured",
         )
-    if not authorization or not hmac.compare_digest(
+    if not authorization or not secrets.compare_digest(
         authorization.encode("utf-8"),
         f"Bearer {expected_token}".encode("utf-8"),
     ):
@@ -1535,7 +1797,16 @@ async def manual_rollback():
                 "v1": 100,
                 "v2": 0,
             }
+        previous_version = deployment_state.get("active_version", "v1")
+        now = datetime.now(timezone.utc).isoformat()
+        deployment_state["deployment_id"] = str(uuid.uuid4())
+        deployment_state["old_version"] = previous_version
+        deployment_state["new_version"] = "v1"
+        deployment_state["started_at"] = now
+        deployment_state["finished_at"] = now
+        deployment_state["steps"] = []
         rollback()
+        persist_deployment_history()
 
         return {
             "status": "rolled_back",

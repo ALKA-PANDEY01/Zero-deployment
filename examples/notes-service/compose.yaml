@@ -16,6 +16,9 @@ services:
   controller:
     environment:
       ZERODOWN_CONFIG: /workspace/examples/notes-service/zerodown.yaml
+      ZERODOWN_V1_TARGET: app_v1
       ZERODOWN_V1_CONTAINER: zerodown-notes-service-v1
+      ZERODOWN_V2_TARGET: zerodown-notes-service-v2
+      ZERODOWN_V2_CONTAINER: zerodown-notes-service-v2
     volumes:
       - ./examples/notes-service/nginx.conf:/shared/nginx.conf

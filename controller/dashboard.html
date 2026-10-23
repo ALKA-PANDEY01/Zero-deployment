@@ -84,6 +84,7 @@
     .metric-value.warn { color: var(--amber); }
     .metric-value.bad { color: var(--red); }
     .events { display: grid; gap: 7px; max-height: 300px; overflow: auto; }
+    .candidate-logs { max-height: 320px; overflow: auto; padding: 12px; color: #d9e2f2; background: #172338; border-radius: 10px; font: 11px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
     .event { display: grid; grid-template-columns: 95px 1fr; gap: 12px; padding: 9px 11px; background: #f8fafc; border: 1px solid #edf1f6; border-radius: 9px; font-size: 12px; }
     .event time { color: var(--muted); font-variant-numeric: tabular-nums; }
     .event span { overflow-wrap: anywhere; }
@@ -191,7 +192,7 @@
       </article>
 
       <article class="card metrics-card">
-        <div class="rollout-heading"><h2>Live safety metrics</h2><span class="progress-copy" id="metrics-updated">Updated with deployment state</span></div>
+        <div class="rollout-heading"><h2>Canary safety metrics</h2><span class="progress-copy" id="metrics-updated">Synthetic gateway probes run during rollout monitoring</span></div>
         <div class="metrics">
           <div class="metric"><div class="data-label">Error rate</div><div class="metric-value" id="metric-errors">—</div></div>
           <div class="metric"><div class="data-label">P95 latency</div><div class="metric-value" id="metric-latency">—</div></div>
@@ -209,6 +210,11 @@
       <article class="card events-card">
         <div class="events-heading"><h2>Recent deployment history</h2><span class="progress-copy" id="history-count">Preserved deployments</span></div>
         <div class="events" id="history"><div class="empty">No completed deployments yet.</div></div>
+      </article>
+
+      <article class="card events-card" id="candidate-logs-card" hidden>
+        <div class="events-heading"><h2>Candidate container logs</h2><span class="progress-copy">Captured before failed container cleanup</span></div>
+        <pre class="candidate-logs" id="candidate-logs"></pre>
       </article>
     </section>
   </main>
@@ -239,7 +245,7 @@
       if (!tokenPrompt) {
         tokenPrompt = Promise.resolve(window.prompt('Enter the ZeroDown deployment token'))
           .then((token) => {
-            operatorToken = token || null;
+            operatorToken = token ? token.trim() || null : null;
             return operatorToken;
           })
           .finally(() => { tokenPrompt = null; });
@@ -525,9 +531,12 @@
       healthElement.textContent = status.health || 'unknown';
       healthElement.className = `metric-value ${status.health === 'healthy' ? 'good' : status.health === 'unhealthy' ? 'bad' : ''}`;
       byId('metrics-updated').textContent = metrics.requests !== undefined
-        ? `${metrics.requests} observed requests · refreshed ${new Date().toLocaleTimeString()}`
+        ? `${metrics.requests} synthetic gateway probes · refreshed ${new Date().toLocaleTimeString()}`
         : 'Metrics appear during rollout monitoring';
       renderEvents(status.events || legacy.steps || []);
+      const candidateLogs = status.candidate_logs;
+      byId('candidate-logs-card').hidden = !candidateLogs;
+      if (candidateLogs) byId('candidate-logs').textContent = candidateLogs;
       byId('deploy-button').disabled = active;
       byId('failure-button').disabled = active;
       byId('rollback-button').disabled = !active && traffic.v2_percent === 0;

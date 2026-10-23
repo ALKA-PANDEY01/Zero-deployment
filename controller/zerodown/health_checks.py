@@ -96,7 +96,7 @@ class VersionHealthChecker:
                     },
                 )
 
-            if response.status_code != 200:
+            if not 200 <= response.status_code < 300:
                 if attempt < self.attempts:
                     await asyncio.sleep(self.retry_delay_seconds)
                     continue
@@ -107,7 +107,7 @@ class VersionHealthChecker:
                         "status": ValidationStatus.UNHEALTHY.value,
                         "status_code": response.status_code,
                         "attempts": attempt,
-                        "message": f"Expected HTTP 200, got {response.status_code}",
+                        "message": f"Expected HTTP 2xx, got {response.status_code}",
                     },
                 )
 
@@ -118,7 +118,7 @@ class VersionHealthChecker:
                     "status": ValidationStatus.HEALTHY.value,
                     "status_code": response.status_code,
                     "attempts": attempt,
-                    "message": "Endpoint returned HTTP 200",
+                    "message": "Endpoint returned HTTP 2xx",
                 },
             )
 

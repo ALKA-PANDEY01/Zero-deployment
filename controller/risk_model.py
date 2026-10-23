@@ -1,4 +1,4 @@
-"""Small supervised logistic model for the deployment-risk demo.
+"""Illustrative logistic risk score for the deployment demo.
 
 The bundled training cases are illustrative. Calibrate this model against real
 release telemetry before using its scores to make production decisions.
@@ -87,7 +87,11 @@ def _normalize(metrics):
 
 
 def predict_deployment_risk(metrics):
-    """Return a trained logistic probability and readable risk band."""
+    """Return a demo probability and readable risk band.
+
+    The bundled examples are synthetic, so this score is a demo signal rather
+    than a production-calibrated failure probability.
+    """
     features = _normalize(metrics)
     probability = _sigmoid(
         _MODEL_BIAS

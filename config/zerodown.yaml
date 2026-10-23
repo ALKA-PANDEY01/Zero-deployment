@@ -6,6 +6,7 @@ app:
 
 health:
   endpoint: /health
+  canary_endpoint: /
   smoke_endpoints:
     - /ready
     - /api/data

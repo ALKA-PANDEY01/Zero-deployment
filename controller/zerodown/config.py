@@ -29,6 +29,7 @@ class AppConfig:
 class HealthConfig:
     endpoint: str
     smoke_endpoints: tuple[str, ...] = ()
+    canary_endpoint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -132,7 +133,7 @@ def parse_config(raw: Any) -> ZeroDownConfig:
         root["health"],
         "health",
         {"endpoint"},
-        {"smoke_endpoints"},
+        {"smoke_endpoints", "canary_endpoint"},
     )
     smoke_endpoints = health_data.get("smoke_endpoints", [])
     if not isinstance(smoke_endpoints, list):
@@ -226,6 +227,15 @@ def parse_config(raw: Any) -> ZeroDownConfig:
         health=HealthConfig(
             endpoint=_endpoint(health_data["endpoint"], "health.endpoint"),
             smoke_endpoints=parsed_smoke_endpoints,
+            canary_endpoint=_endpoint(
+                health_data.get(
+                    "canary_endpoint",
+                    parsed_smoke_endpoints[0]
+                    if parsed_smoke_endpoints
+                    else health_data["endpoint"],
+                ),
+                "health.canary_endpoint",
+            ),
         ),
         rollout=RolloutConfig(
             stages=stages,

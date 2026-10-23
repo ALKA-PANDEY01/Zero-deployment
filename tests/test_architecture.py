@@ -350,6 +350,29 @@ def test_ci_deploy_api_requires_configured_bearer_token(monkeypatch):
     assert response.json()["detail"] == "CI deployment trigger is not configured"
 
 
+def test_secret_file_token_auth_accepts_trailing_newline_and_rejects_wrong_token(
+    monkeypatch, tmp_path
+):
+    secret_file = tmp_path / "deploy-token"
+    secret_file.write_text("test-deploy-token\n", encoding="utf-8")
+    monkeypatch.setenv("ZERODOWN_DEPLOY_TOKEN_FILE", str(secret_file))
+    token = controller.read_secret(
+        "ZERODOWN_DEPLOY_TOKEN", "ZERODOWN_DEPLOY_TOKEN_FILE"
+    )
+    monkeypatch.setattr(controller, "DEPLOY_TOKEN", token)
+
+    with TestClient(controller.app) as client:
+        valid = client.get(
+            "/status", headers={"Authorization": f"Bearer {token}"}
+        )
+        invalid = client.get(
+            "/status", headers={"Authorization": "Bearer wrong-token"}
+        )
+
+    assert valid.status_code == 200
+    assert invalid.status_code == 401
+
+
 def test_ci_deploy_api_schedules_immutable_image_without_exposing_credentials(
     monkeypatch,
 ):
